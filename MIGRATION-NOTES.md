@@ -238,3 +238,36 @@ También se eliminaron las carpetas `obj\`/`bin\` (de la librería y de
 corrección, para evitar builds incrementales corruptos: **si el error
 persiste tras actualizar, borrar manualmente `obj\` y `bin\` en la raíz del
 repo y en `samples\TestHost\` antes de reconstruir.**
+
+## Corrección post-migración #4: CS0103 (Typo/Variant/Color) + CS0104 en samples/TestHost
+
+Cuarto error de build reportado, esta vez ya con la librería compilando
+bien y solo `samples/TestHost` fallando: `CS0103` para `Typo`, `Variant`,
+`Color` (enums de MudBlazor) en `Routes.razor`, `MainLayout.razor` y
+`Home.razor`, y `CS0104: 'ServiceCollectionExtensions' is an ambiguous
+reference` en `Program.cs`.
+
+Causa 1 (Typo/Variant/Color): el mismo problema que la corrección #1, pero
+en el `RootNamespace` de **TestHost**, que seguía siendo
+`SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost` — con "MudBlazor"
+como segmento literal anidado, lo que sombreaba el namespace global real
+`MudBlazor` (de donde vienen `Typo`/`Variant`/`Color`) pese al
+`@using MudBlazor` en `_Imports.razor`.
+
+Corrección: `RootNamespace` de TestHost → `SAMACDX.ThemeManager.Persistence.TestHost`
+(análogo al de la librería), actualizando todas las referencias
+`using SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost...` en
+`Routes.razor`, `_Imports.razor`, `TestDbContext.cs`, `Program.cs` y
+`LocalFileStorageService.cs`.
+
+Causa 2 (ambigüedad): `Program.cs` tiene tanto
+`using SAMACDX.ThemeManager.Persistence.Extensions;` (con la clase
+`ServiceCollectionExtensions` de la librería) como `using MudBlazor.Services;`
+(que también define una clase `ServiceCollectionExtensions`), por lo que
+`typeof(ServiceCollectionExtensions)` sin calificar era ambiguo.
+
+Corrección: se calificó completamente como
+`typeof(SAMACDX.ThemeManager.Persistence.Extensions.ServiceCollectionExtensions)`.
+
+De nuevo se borraron `obj\`/`bin\` de `samples/TestHost` tras el cambio de
+`RootNamespace` para evitar artefactos incrementales corruptos.
