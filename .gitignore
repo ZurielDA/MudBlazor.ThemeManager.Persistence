@@ -7,3 +7,8 @@ obj/
 ## Rider / VSCode
 .idea/
 .vscode/
+
+## Test host (samples/TestHost) runtime artifacts
+samples/TestHost/*.db
+samples/TestHost/*.db-*
+samples/TestHost/wwwroot/Uploads/

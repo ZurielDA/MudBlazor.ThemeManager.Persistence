@@ -1,0 +1,41 @@
+﻿@page "/"
+@inject IThemeCatalogService ThemeCatalogService
+@inject IThemeLogoService ThemeLogoService
+
+<MudPaper Class="pa-6">
+    <MudText Typo="Typo.h4" Class="mb-4">Estado actual del módulo Theme</MudText>
+
+    @if (_activeCatalog is null)
+    {
+        <MudText>Cargando…</MudText>
+    }
+    else
+    {
+        <MudStack Spacing="2">
+            <MudText><b>Tema activo:</b> @_activeCatalog.Name</MudText>
+            <MudText><b>Favicon activo:</b> @(_activeCatalog.ThemeFavicons?.FirstOrDefault(f => f.IsActive)?.Path ?? "(ninguno)")</MudText>
+            <MudText><b>Logo activo:</b> @(_activeCatalog.ThemeLogos?.FirstOrDefault(l => l.IsActive)?.Path ?? "(ninguno)")</MudText>
+            <MudText><b>GetCurrentLogoPathAsync():</b> @(_logoPath ?? "(vacío)")</MudText>
+        </MudStack>
+
+        @if (!string.IsNullOrEmpty(_logoPath))
+        {
+            <MudImage Src="@_logoPath" Height="80" Class="mt-4" />
+        }
+    }
+
+    <MudButton Href="/ThemeCatalog" Variant="Variant.Filled" Color="Color.Primary" Class="mt-6">
+        Ir al administrador de Theme (/ThemeCatalog)
+    </MudButton>
+</MudPaper>
+
+@code {
+    private ThemeCatalog? _activeCatalog;
+    private string? _logoPath;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _activeCatalog = await ThemeCatalogService.GetActiveAsync();
+        _logoPath = await ThemeLogoService.GetCurrentLogoPathAsync();
+    }
+}
