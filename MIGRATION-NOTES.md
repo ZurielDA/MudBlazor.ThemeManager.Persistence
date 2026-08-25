@@ -154,3 +154,22 @@ de todo el código fuente) se cambió a `SAMACDX.ThemeManager.Persistence`
 como `SAMACDX.MudBlazor.ThemeManager.Persistence` — sólo cambió el
 namespace de C#, que es un detalle interno y no afecta el nombre público de
 la librería.
+
+## Corrección post-migración #2: RZ9985 "Multiple components use the tag..."
+
+Segundo error de build reportado por el usuario, tras corregir el namespace:
+`RZ9985: Multiple components use the tag 'MudThemeManager'` (y
+`MudThemeManagerColorItem`), ambos listados dos veces con el mismo nombre
+completo `MudBlazor.ThemeManager.MudThemeManager`.
+
+Causa: el `.csproj` de esta librería (SDK `Microsoft.NET.Sdk.Razor`) no
+excluía la carpeta `External\` de su propio globbing por defecto. Como
+`External\MudBlazor.ThemeManager` es un proyecto aparte (referenciado vía
+`ProjectReference`), sus archivos `.razor`/`.cs` se estaban compilando DOS
+veces: una vez como parte de su propio ensamblado, y otra vez directamente
+dentro de esta librería (por el glob implícito `**/*.razor`), generando dos
+tipos de componente con el mismo nombre.
+
+Corrección: se agregó al `.csproj` el mismo `ItemGroup` de exclusión que ya
+usa el propio `GDIP.csproj` para esta misma carpeta submódulo
+(`Compile/Content/EmbeddedResource/None Remove="External\**"`).
