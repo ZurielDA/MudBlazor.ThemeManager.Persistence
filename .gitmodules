@@ -1,0 +1,4 @@
+[submodule "External/MudBlazor.ThemeManager"]
+	path = External/MudBlazor.ThemeManager
+	url = https://github.com/SAMACDX/ThemeManager.git
+	branch = gdip-theme-manager
