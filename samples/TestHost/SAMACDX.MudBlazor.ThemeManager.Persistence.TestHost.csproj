@@ -4,7 +4,7 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<RootNamespace>SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost</RootNamespace>
+		<RootNamespace>SAMACDX.ThemeManager.Persistence.TestHost</RootNamespace>
 	</PropertyGroup>
 
 	<ItemGroup>

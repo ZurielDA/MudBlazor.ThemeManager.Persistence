@@ -2,7 +2,7 @@
 using SAMACDX.ThemeManager.Persistence.Entities.Theme;
 using Microsoft.EntityFrameworkCore;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost.Data
+namespace SAMACDX.ThemeManager.Persistence.TestHost.Data
 {
     /// <summary>
     /// DbContext mínimo sólo para poder probar la librería de forma aislada.

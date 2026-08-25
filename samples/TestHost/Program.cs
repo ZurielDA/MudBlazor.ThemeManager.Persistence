@@ -1,6 +1,6 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost.Components;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost.Data;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost.Services;
+﻿using SAMACDX.ThemeManager.Persistence.TestHost.Components;
+using SAMACDX.ThemeManager.Persistence.TestHost.Data;
+using SAMACDX.ThemeManager.Persistence.TestHost.Services;
 using SAMACDX.ThemeManager.Persistence.Extensions;
 using SAMACDX.ThemeManager.Persistence.Interfaces.Services;
 using SAMACDX.ThemeManager.Persistence.Persistence.Seeders.Themes;
@@ -48,6 +48,6 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
-    .AddAdditionalAssemblies(typeof(ServiceCollectionExtensions).Assembly);
+    .AddAdditionalAssemblies(typeof(SAMACDX.ThemeManager.Persistence.Extensions.ServiceCollectionExtensions).Assembly);
 
 app.Run();

@@ -1,7 +1,7 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services;
 using Microsoft.AspNetCore.Components.Forms;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.TestHost.Services
+namespace SAMACDX.ThemeManager.Persistence.TestHost.Services
 {
     /// <summary>
     /// Implementación mínima de IThemeFileStorageService para el test host,
