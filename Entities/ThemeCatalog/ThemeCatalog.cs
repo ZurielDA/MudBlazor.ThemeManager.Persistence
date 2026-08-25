@@ -1,7 +1,7 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Abstracts;
+﻿using SAMACDX.ThemeManager.Persistence.Entities.Abstracts;
 using Microsoft.EntityFrameworkCore;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog
+namespace SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
 {
     [Index(nameof(Name), IsUnique = true)]
     public class ThemeCatalog : AuditableEntity

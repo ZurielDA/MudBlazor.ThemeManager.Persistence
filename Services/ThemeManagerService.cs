@@ -1,4 +1,4 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
 
 public class ThemeManagerService : IThemeManagerService
 {

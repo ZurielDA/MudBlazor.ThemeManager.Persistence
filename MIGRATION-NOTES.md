@@ -129,3 +129,28 @@ services.AddThemeManagerPersistence<ApplicationDbContext>();
 //    componentes Razor (p. ej. AddAdditionalAssemblies) para que la ruta
 //    "/ThemeCatalog" y los demás componentes se resuelvan.
 ```
+
+## Corrección post-migración: colisión de namespace con MudBlazor.ThemeManager
+
+Al intentar compilar por primera vez (`dotnet build` desde Visual Studio del
+usuario) aparecieron errores CS0246/CS0234 en los tres componentes que usan
+tipos de `MudBlazor` / `MudBlazor.ThemeManager`
+(`ISnackbar`, `ThemeManagerTheme`, `MudThemeManager`, `ThemePreset`).
+
+Causa: el namespace raíz original del proyecto,
+`SAMACDX.MudBlazor.ThemeManager.Persistence`, contiene literalmente
+`MudBlazor.ThemeManager` como segmentos anidados. La resolución de
+namespaces de C# busca primero en los namespaces envolventes antes que en
+el global; como `SAMACDX.MudBlazor.ThemeManager` "existe" (es el propio
+namespace de esta librería), cualquier referencia sin calificar completa a
+`MudBlazor` o `MudBlazor.ThemeManager` dentro de la librería se resolvía
+contra ESE namespace (vacío de esos tipos) en vez del namespace global real
+del paquete MudBlazor y del submódulo MudBlazor.ThemeManager.
+
+Corrección: el `RootNamespace` del `.csproj` (y por lo tanto el namespace
+de todo el código fuente) se cambió a `SAMACDX.ThemeManager.Persistence`
+(sin el segmento `MudBlazor`). El nombre del proyecto/ensamblado/paquete
+(`AssemblyName`, nombre del `.csproj`, nombre del repo/carpeta) se mantiene
+como `SAMACDX.MudBlazor.ThemeManager.Persistence` — sólo cambió el
+namespace de C#, que es un detalle interno y no afecta el nombre público de
+la librería.

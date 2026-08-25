@@ -1,6 +1,6 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Abstracts;
+﻿using SAMACDX.ThemeManager.Persistence.Entities.Abstracts;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Theme
+namespace SAMACDX.ThemeManager.Persistence.Entities.Theme
 {
     public class ThemeTerm  : AuditableEntity
     {

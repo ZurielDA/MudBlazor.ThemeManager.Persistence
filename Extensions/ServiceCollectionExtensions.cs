@@ -1,12 +1,12 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Repositories.Theme;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Repositories.Theme;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Services;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Services.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme;
+using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
+using SAMACDX.ThemeManager.Persistence.Repositories.Theme;
+using SAMACDX.ThemeManager.Persistence.Services;
+using SAMACDX.ThemeManager.Persistence.Services.Theme;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Extensions
+namespace SAMACDX.ThemeManager.Persistence.Extensions
 {
     /// <summary>
     /// Punto de entrada para registrar este módulo (Theme/Branding) en la aplicación

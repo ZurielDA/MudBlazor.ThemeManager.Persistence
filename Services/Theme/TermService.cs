@@ -1,9 +1,9 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Utilities;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
+using SAMACDX.ThemeManager.Persistence.Utilities;
+using SAMACDX.ThemeManager.Persistence.Entities.Theme;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Services.Theme
+namespace SAMACDX.ThemeManager.Persistence.Services.Theme
 {
     internal class TermService : ITermService
     {

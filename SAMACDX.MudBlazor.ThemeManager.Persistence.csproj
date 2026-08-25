@@ -4,7 +4,14 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<RootNamespace>SAMACDX.MudBlazor.ThemeManager.Persistence</RootNamespace>
+		<!-- RootNamespace is deliberately NOT "SAMACDX.MudBlazor.ThemeManager.Persistence":
+		     that would embed "MudBlazor.ThemeManager" as a literal nested namespace path,
+		     which shadows the real global MudBlazor / MudBlazor.ThemeManager namespaces
+		     (from the MudBlazor package and the MudBlazor.ThemeManager submodule) for any
+		     code inside this library that references them unqualified - causes CS0246/CS0234
+		     (ISnackbar, ThemeManagerTheme, MudThemeManager "not found"). AssemblyName keeps
+		     the full library/package name; only RootNamespace differs. -->
+		<RootNamespace>SAMACDX.ThemeManager.Persistence</RootNamespace>
 		<AssemblyName>SAMACDX.MudBlazor.ThemeManager.Persistence</AssemblyName>
 	</PropertyGroup>
 

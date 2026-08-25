@@ -1,4 +1,4 @@
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Utilities
+namespace SAMACDX.ThemeManager.Persistence.Utilities
 {
     /// <summary>
     /// Utilidad estática para generar artículos definidos e indefinidos en español

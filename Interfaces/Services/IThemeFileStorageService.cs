@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services
+namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services
 {
     /// <summary>
     /// Contrato mínimo de almacenamiento de archivos que necesita este módulo

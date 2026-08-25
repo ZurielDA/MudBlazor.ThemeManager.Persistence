@@ -1,9 +1,9 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Repositories;
+﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using System.Linq.Expressions;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Repositories
+namespace SAMACDX.ThemeManager.Persistence.Repositories
 {
     /// <summary>
     /// Repositorio genérico, adaptado del original de GDIP para trabajar con el

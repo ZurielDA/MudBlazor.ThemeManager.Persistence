@@ -1,8 +1,8 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Repositories.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
+using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
+using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Services
+namespace SAMACDX.ThemeManager.Persistence.Services
 {
     public class ThemePresentService : IThemePresentService
     {        

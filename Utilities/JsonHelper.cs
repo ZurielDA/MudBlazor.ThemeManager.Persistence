@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Utilities
+namespace SAMACDX.ThemeManager.Persistence.Utilities
 {
     public static class JsonHelper
     {

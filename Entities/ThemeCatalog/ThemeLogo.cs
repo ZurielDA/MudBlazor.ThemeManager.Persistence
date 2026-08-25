@@ -1,6 +1,6 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Abstracts;
+﻿using SAMACDX.ThemeManager.Persistence.Entities.Abstracts;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog
+namespace SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
 {
     public class ThemeLogo : AuditableEntity
     {

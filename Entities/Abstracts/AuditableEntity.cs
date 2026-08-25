@@ -1,4 +1,4 @@
-﻿namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Abstracts
+﻿namespace SAMACDX.ThemeManager.Persistence.Entities.Abstracts
 {
     public abstract class AuditableEntity
     {

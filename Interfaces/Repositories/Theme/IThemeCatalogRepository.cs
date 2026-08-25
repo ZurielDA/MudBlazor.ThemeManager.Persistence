@@ -1,6 +1,6 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog;
+﻿using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Repositories.Theme
+namespace SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme
 { 
     public interface IThemeCatalogRepository : IGenericRepository<ThemeCatalog>
     {

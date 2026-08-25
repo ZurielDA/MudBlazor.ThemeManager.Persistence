@@ -1,5 +1,5 @@
 ﻿
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme
+namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 {
     public interface IThemeManagerService
     {

@@ -1,7 +1,7 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Entities.Theme;
 using Microsoft.EntityFrameworkCore;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Persistence.Seeders.Themes
+namespace SAMACDX.ThemeManager.Persistence.Persistence.Seeders.Themes
 {
     public static class ThemeTermsSeeder
     {

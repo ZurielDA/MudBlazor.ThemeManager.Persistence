@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Repositories
+namespace SAMACDX.ThemeManager.Persistence.Interfaces.Repositories
 {
         public interface IGenericRepository<TEntity> where TEntity : class
         {

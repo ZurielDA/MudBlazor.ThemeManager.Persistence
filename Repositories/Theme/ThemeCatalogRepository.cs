@@ -1,8 +1,8 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog;
-using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Repositories.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
+using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme;
 using Microsoft.EntityFrameworkCore;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Repositories.Theme
+namespace SAMACDX.ThemeManager.Persistence.Repositories.Theme
 {
     public class ThemeCatalogRepository<TContext> : GenericRepository<ThemeCatalog, TContext>, IThemeCatalogRepository
         where TContext : DbContext

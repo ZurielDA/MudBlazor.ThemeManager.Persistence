@@ -1,6 +1,6 @@
-﻿using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Entities.Theme;
 
-namespace SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme
+namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 {
     public interface IThemeTermService
     {
