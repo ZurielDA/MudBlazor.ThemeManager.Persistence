@@ -173,3 +173,33 @@ tipos de componente con el mismo nombre.
 Corrección: se agregó al `.csproj` el mismo `ItemGroup` de exclusión que ya
 usa el propio `GDIP.csproj` para esta misma carpeta submódulo
 (`Compile/Content/EmbeddedResource/None Remove="External\**"`).
+
+## App de prueba: samples/TestHost
+
+Se agregó `samples/TestHost/`, una app Blazor Server mínima (SDK
+`Microsoft.NET.Sdk.Web`, SQLite vía `Microsoft.EntityFrameworkCore.Sqlite`)
+que consume esta librería igual que lo haría una app host real, sin
+depender de GDIP en absoluto. Sirve para que el usuario pueda probar el
+módulo Theme/Branding directamente (crear/activar temas, subir
+favicon/logo, editar terminología) y confirmar que la persistencia
+sobrevive a un reinicio.
+
+Piezas del sample:
+
+- `TestDbContext` — un `DbContext` mínimo con `DbSet<T>` para las 5
+  entidades de Theme, pasado como `TContext` a
+  `AddThemeManagerPersistence<TContext>()`.
+- `LocalFileStorageService` — implementación mínima de
+  `IThemeFileStorageService` (equivalente a lo que hace
+  `FileStorageService.SaveFileAsync` en GDIP), escribe a `wwwroot/{folder}`.
+- `Program.cs` — registra Razor Components + modo interactivo server,
+  `AddMudServices()`, el `DbContextFactory<TestDbContext>` con SQLite,
+  `AddThemeManagerPersistence<TestDbContext>()`, siembra los datos por
+  defecto (mismo orden que GDIP: Catalogs → Present → Terms → Favicons →
+  Logos) contra `EnsureCreatedAsync()`, y expone las rutas de la librería
+  vía `AddAdditionalAssemblies(typeof(ServiceCollectionExtensions).Assembly)`.
+- Ver `samples/TestHost/README.md` para instrucciones de ejecución.
+
+No requiere ni toca GDIP. No es un cambio a la librería en sí — es solo un
+arnés de prueba adicional, tal como fue solicitado explícitamente por el
+usuario.
