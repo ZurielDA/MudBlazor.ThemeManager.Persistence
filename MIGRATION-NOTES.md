@@ -203,3 +203,38 @@ Piezas del sample:
 No requiere ni toca GDIP. No es un cambio a la librería en sí — es solo un
 arnés de prueba adicional, tal como fue solicitado explícitamente por el
 usuario.
+
+## Corrección post-migración #3: CS0579 duplicados + CS0234 al agregar samples/TestHost
+
+Tercer error de build reportado por el usuario, esta vez tras agregar
+`samples/TestHost/`: 35 errores, entre ellos `CS0579: Duplicate ... attribute`
+sobre los `AssemblyInfo.cs`/`AssemblyAttributes.cs` generados del propio
+proyecto de la librería, `CS0234` para `Builder`/`Hosting`/`Http`/
+`Authorization`/`Components` (namespaces de ASP.NET Core Web), `CS0246` para
+`IWebHostEnvironment`, y de nuevo `CS0234`/`CS0246` para `MudThemeManager`/
+`ISnackbar`/`ThemeManagerTheme` en `ThemePaletteSelector.razor` y
+`ThemeFaviconAndLogoConfig.razor`.
+
+Causa: exactamente la misma raíz que la corrección #2 (RZ9985), pero para
+`samples\`: el `.csproj` de la librería excluía `External\**` de su propio
+globbing por defecto, pero no `samples\**`. Como resultado, el SDK globbing
+por defecto (`Microsoft.NET.Sdk.Razor`) compilaba TAMBIÉN, dentro del
+ensamblado de la librería, todos los `.cs`/`.razor` de
+`samples\TestHost\` -incluyendo archivos generados bajo su propio
+`obj\Debug\net9.0\**` de una compilación previa (AssemblyInfo, GlobalUsings)-
+mezclando dos proyectos con configuraciones incompatibles (la librería es
+`Sdk.Razor` sin referencia al framework compartido de ASP.NET Core; TestHost
+es `Sdk.Web` con esa referencia) dentro de un mismo ensamblado. Esto generaba
+atributos de ensamblado duplicados, tipos ASP.NET Core Web no resueltos, y
+-por la compilación cruzada resultante- confundía nuevamente la resolución
+de namespaces de MudBlazor/MudBlazor.ThemeManager en archivos de la propia
+librería que ya estaban correctos.
+
+Corrección: se agregó al mismo `ItemGroup` de exclusión del `.csproj` de la
+librería las entradas `Compile/Content/EmbeddedResource/None
+Remove="samples\**"`, análogas a las ya existentes para `External\**`.
+También se eliminaron las carpetas `obj\`/`bin\` (de la librería y de
+`samples/TestHost`) que quedaron con artefactos generados antes de esta
+corrección, para evitar builds incrementales corruptos: **si el error
+persiste tras actualizar, borrar manualmente `obj\` y `bin\` en la raíz del
+repo y en `samples\TestHost\` antes de reconstruir.**
