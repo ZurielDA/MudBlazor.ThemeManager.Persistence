@@ -1,0 +1,471 @@
+﻿@using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme
+@using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog
+@using System.Text.Json
+
+@inject IThemeFaviconService ThemeFaviconService;
+@inject IThemeLogoService ThemeLogoService;
+@inject ISnackbar SnackbarService
+
+<MudPaper Class="py-8 my-8" Style="overflow:hidden; position:relative;">
+    <MudPaper Class="mx-6 my-6" Elevation="0">
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h4">
+                Configurador de Favicon y Logo
+            </MudText>
+
+            <MudText Typo="Typo.body1">
+                Personaliza el favicon y logotipos de la plataforma para alinear la identidad visual con la de tu institución o marca.
+                Desde aquí puedes actualizar las imágenes principales y sus variaciones, asegurando una apariencia coherente en toda la interfaz de usuario.
+            </MudText>
+
+            <MudText Typo="Typo.body2">
+                Al guardar un favicon o logotipo, estos se almacenarán dentro de la
+                <b>Configuración Visual</b> que tengas seleccionada en el
+                <b>Configurador de Tema Visual</b>.
+                Esto permite gestionar múltiples configuraciones y cambiar entre ellas fácilmente.
+            </MudText>
+
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Recomendación: utiliza imágenes en formato <b>SVG</b> para obtener mejor calidad y escalabilidad en distintos dispositivos.
+            </MudText>
+        </MudStack>
+    </MudPaper>
+    <MudGrid Class="mx-1">
+        @* Sección de Favicon *@
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="1" Class="d-flex align-center justify-center mud-width-full pb-2">
+                <MudText Typo="Typo.h6">Favicon</MudText>
+            </MudPaper>
+            <MudPaper Class="d-flex flex-column mud-width-full" Elevation="1">
+                <MudGrid>
+                    <MudItem xs="12" md="8">
+                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full pt-4">
+                            <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:100px; width:auto;">
+                                <MudImage Src="@_faviconPreviewPath" />
+                            </MudAvatar>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
+                            <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles" Accept="image/*" Class="mx-2">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Image" Size="Size.Small" Color="Color.Secondary" Class="rounded-pill">Cargar</MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>                                
+                            <MudPaper Elevation="4" Class="rounded-pill mx-2">
+                                <MudButton Disabled="_faviconFile == null || _isSavingThemeFavicon" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveFaviconAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
+                                    @if (_isSavingThemeFavicon)
+                                    {
+                                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                        <MudText Class="ms-2">Guardando</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText>Guardar</MudText>
+                                    }                                        
+                                </MudButton>
+                            </MudPaper>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudPaper Elevation="0" Class="p-4 mt-2">
+                            <MudText Typo="Typo.h6">Favicons</MudText>
+                            <MudSelect T="int" Label="Favicon Seleccionado" Dense="true" Margin="Margin.Dense" Value="@_activeFaviconId" ValueChanged="OnActivateFaviconAsyncChanged">
+                                @foreach (var themeIcon in _themeFavicons)
+                                {
+                                    <MudSelectItem Value="@themeIcon.Id">@themeIcon.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
+                            <MudButton OnClick="ActivateFaviconAsync" Disabled="!_hasSelectionChanged || _isActivatingThemeFavicon" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Error">
+
+                                @if (_isActivatingThemeFavicon)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">Activando Favicon</MudText>
+                                }
+                                else
+                                {
+                                    <MudText>Activar Favicon</MudText>
+                                }
+
+                            </MudButton>
+                        </MudPaper>                            
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+        @* -- *@
+
+        @* Sección de Logotipo *@
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="1" Class="d-flex align-center justify-center mud-width-full pb-2">
+                <MudText Typo="Typo.h6">Logo</MudText>
+            </MudPaper>
+            <MudPaper Class="d-flex flex-column mud-width-full" Elevation="1">
+                <MudGrid>
+                    <MudItem xs="12" md="8">
+                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full pt-4">
+                            <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:100px; width:auto;">
+                                <MudImage Src="@_logoPreviewPath" />
+                            </MudAvatar>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
+                            <MudFileUpload T="IBrowserFile" FilesChanged="UploadLogoFile" Accept="image/png,image/jpeg" Class="mx-2">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Image" Size="Size.Small" Color="Color.Secondary" Class="rounded-pill">Cargar</MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                            <MudPaper Elevation="4" Class="rounded-pill mx-2">
+                                <MudButton Disabled="_logoFile == null || _isSavingThemeLogo" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveLogoAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
+                                    @if (_isSavingThemeLogo)
+                                    {
+                                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                        <MudText Class="ms-2">Guardando</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText>Guardar</MudText>
+                                    }
+                                </MudButton>
+                            </MudPaper>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudPaper Elevation="0" Class="p-4 mt-2">
+                            <MudText Typo="Typo.h6">Logos</MudText>
+                            <MudSelect T="int" Label="Logo Seleccionado" Dense="true" Margin="Margin.Dense" Value="@_activeLogoId" ValueChanged="OnActivateLogoAsyncChanged">
+                                @foreach (var themeLogo in _themeLogos)
+                                {
+                                    <MudSelectItem Value="@themeLogo.Id">@themeLogo.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
+                            <MudButton OnClick="ActivateLogoAsync" Disabled="!_hasLogoSelectionChanged || _isActivatingThemeLogo" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Error">
+
+                                @if (_isActivatingThemeLogo)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">Activando Logo</MudText>
+                                }
+                                else
+                                {
+                                    <MudText>Activar Logo</MudText>
+                                }
+
+                            </MudButton>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+        @* -- *@
+    </MudGrid>
+</MudPaper>
+
+@code {
+
+    [Parameter]
+    public ThemeCatalog? SelectThemeCatalog { get; set; }
+
+    /*
+     * Sección de favicon
+     */
+    
+    private List<ThemeFavicon> _themeFavicons = new List<ThemeFavicon>();
+
+    private IBrowserFile _faviconFile = null;
+
+    private string _faviconPreviewPath  = "Uploads/favicons/default.svg";
+    private int _activeFaviconId;
+
+    private bool _hasSelectionChanged = false;
+    private bool _isSavingThemeFavicon = false;
+    private bool _isActivatingThemeFavicon = false;
+
+    protected async override Task OnParametersSetAsync()
+    {
+        await LoadFaviconAsync();
+        await LoadLogoAsync();
+    }
+
+    private async Task LoadFaviconAsync()
+    {
+        if (SelectThemeCatalog?.Id != null)
+        {            
+            _themeFavicons = await ThemeFaviconService.GetAllByThemeCatalogIdAsync(SelectThemeCatalog.Id);
+
+            if (_themeFavicons.Count() > 0)
+            {
+                ThemeFavicon themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
+
+                if(themeFaviconTemp != null)
+                {
+                    _faviconPreviewPath = themeFaviconTemp.Path;
+                    _activeFaviconId = themeFaviconTemp.Id;
+
+                    StateHasChanged();
+                }                
+            }
+        }
+    }
+
+    private async Task UploadFiles(IBrowserFile browserFileTemp)
+    {
+        _faviconFile = browserFileTemp;
+
+        var buffer = new byte[_faviconFile.Size];
+        await _faviconFile.OpenReadStream(50 * 1024 * 1024).ReadAsync(buffer);
+
+        var base64 = Convert.ToBase64String(buffer);
+
+        var contentType = _faviconFile.ContentType;
+        _faviconPreviewPath  = $"data:{contentType};base64,{base64}";
+    }
+    
+    private void resetUploadFile()
+    {
+        _isSavingThemeFavicon = false;
+        _faviconFile = null;
+    }
+
+    private async Task SaveFaviconAsync()
+    {
+        _isSavingThemeFavicon = true;
+
+        ThemeFavicon newThemeFavicon = await ThemeFaviconService.CreateAsync(new ThemeFavicon
+        {
+            ThemeCatalogId = SelectThemeCatalog.Id,
+            Name = _faviconFile.Name
+        },
+            _faviconFile
+        );
+
+        _themeFavicons.Add(newThemeFavicon);
+
+        await Task.Delay(2000);
+
+        resetUploadFile();
+
+        SnackbarService.Add(
+            @<div>
+                <h3>Éxito</h3>
+                <ul>
+                    <li>Se guardo el favicon con éxito</li>
+                </ul>
+            </div>
+    ,
+            Severity.Success,
+            config =>
+            {
+                config.RequireInteraction = true;
+                config.ShowCloseIcon = true;
+            }
+        );
+
+    }
+   
+    private void OnActivateFaviconAsyncChanged(int newValue)
+    {
+        _faviconPreviewPath  = _themeFavicons.FirstOrDefault(t => t.Id == newValue)?.Path;
+        _activeFaviconId = newValue;
+
+        int fiviconActiveId = _themeFavicons.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
+
+        if (fiviconActiveId != newValue)
+        {
+            _hasSelectionChanged = true;
+        }
+        else
+        {            
+            _hasSelectionChanged = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task ActivateFaviconAsync()
+    {
+        _isActivatingThemeFavicon = true;
+
+        _themeFavicons = await ThemeFaviconService.ActivateAsync(SelectThemeCatalog.Id, _activeFaviconId);
+
+        resetActivateFavicon();
+
+        await Task.Delay(2000);
+
+        StateHasChanged();
+
+        SnackbarService.Add(
+            @<div>
+                <h3>Éxito</h3>
+                <ul>
+                    <li>Se activo el favicon con éxito</li>
+                </ul>
+            </div>,
+            Severity.Success,
+            config =>
+            {
+                config.RequireInteraction = true;
+                config.ShowCloseIcon = true;
+            }
+        );
+    }    
+
+    private void resetActivateFavicon()
+    {
+        _hasSelectionChanged = false;
+        _isActivatingThemeFavicon = false;
+    }
+
+    /*
+     * 
+     */
+
+    /*
+     * Sección de Logotipo
+     */
+
+    private List<ThemeLogo> _themeLogos = new List<ThemeLogo>();
+
+    private IBrowserFile _logoFile = null;
+
+    private string _logoPreviewPath = "Uploads/logos/default.svg";
+    private int _activeLogoId;
+
+    private bool _hasLogoSelectionChanged = false;
+    private bool _isSavingThemeLogo = false;
+    private bool _isActivatingThemeLogo = false;
+
+    private async Task LoadLogoAsync()
+    {
+        if (SelectThemeCatalog?.Id != null)
+        {
+            _themeLogos = await ThemeLogoService.GetAllByThemeCatalogIdAsync(SelectThemeCatalog.Id);
+
+            if (_themeLogos.Count() > 0)
+            {
+                ThemeLogo themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive)!;
+
+                if (themeLogoTemp != null)
+                {
+                    _logoPreviewPath = themeLogoTemp.Path;
+                    _activeLogoId = themeLogoTemp.Id;
+
+                    StateHasChanged();
+                }                
+            }
+        }
+    }
+
+    private async Task UploadLogoFile(IBrowserFile browserFileTemp)
+    {
+        _logoFile = browserFileTemp;
+
+        var buffer = new byte[_logoFile.Size];
+        await _logoFile.OpenReadStream(50 * 1024 * 1024).ReadAsync(buffer);
+
+        var base64 = Convert.ToBase64String(buffer);
+        var contentType = _logoFile.ContentType;
+        _logoPreviewPath = $"data:{contentType};base64,{base64}";
+    }
+
+    private void resetUploadLogoFile()
+    {
+        _isSavingThemeLogo = false;
+        _logoFile = null;
+    }
+
+    private async Task SaveLogoAsync()
+    {
+        _isSavingThemeLogo = true;
+
+        ThemeLogo newThemeLogo = await ThemeLogoService.CreateAsync(new ThemeLogo
+        {
+            ThemeCatalogId = SelectThemeCatalog.Id,
+            Name = _logoFile.Name
+        },
+            _logoFile
+        );
+
+        _themeLogos.Add(newThemeLogo);
+
+        await Task.Delay(2000);
+
+        resetUploadLogoFile();
+
+        SnackbarService.Add(
+            @<div>
+                <h3>Éxito</h3>
+                <ul>
+                    <li>Se guardo el logo con éxito</li>
+                </ul>
+            </div>,
+            Severity.Success,
+            config =>
+            {
+                config.RequireInteraction = true;
+                config.ShowCloseIcon = true;
+            }
+        );
+
+    }
+
+    private void OnActivateLogoAsyncChanged(int newValue)
+    {
+        _logoPreviewPath = _themeLogos.FirstOrDefault(t => t.Id == newValue)?.Path;
+        _activeLogoId = newValue;
+
+        int fiviconActiveId = _themeLogos.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
+
+        if (fiviconActiveId != newValue)
+        {
+            _hasLogoSelectionChanged = true;
+        }
+        else
+        {
+            _hasLogoSelectionChanged = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task ActivateLogoAsync()
+    {
+        _isActivatingThemeLogo = true;
+
+        _themeLogos = await ThemeLogoService.ActivateAsync(SelectThemeCatalog.Id, _activeLogoId);
+
+        resetActivateLogo();
+
+        await Task.Delay(2000);
+
+        StateHasChanged();
+
+        SnackbarService.Add(
+            @<div>
+                <h3>Éxito</h3>
+                <ul>
+                    <li>Se activo el logo con éxito</li>
+                </ul>
+            </div>,
+            Severity.Success,
+            config =>
+            {
+                config.RequireInteraction = true;
+                config.ShowCloseIcon = true;
+            }
+        );
+    }
+
+    private void resetActivateLogo()
+    {
+        _hasLogoSelectionChanged = false;
+        _isActivatingThemeLogo = false;
+    }
+
+    /*
+     *
+     */
+
+}

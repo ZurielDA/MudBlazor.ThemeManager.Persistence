@@ -1,0 +1,22 @@
+﻿@page "/ThemeCatalog"
+@using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog
+
+<MudPaper Elevation="0" Class="pt-4">
+
+    <ThemeFaviconAndLogoConfig SelectThemeCatalog="themeCatalog" />
+
+    <ThemePaletteSelector ThemeCatalogChanged="themeCatalogChanged" />
+
+    <ThemeTermConfig />
+
+</MudPaper>
+
+@code {
+
+    private ThemeCatalog? themeCatalog;
+
+    private void themeCatalogChanged(ThemeCatalog themeCatalogTemp)
+    {
+        themeCatalog = themeCatalogTemp;        
+    }
+}

@@ -1,0 +1,215 @@
+﻿@using SAMACDX.MudBlazor.ThemeManager.Persistence.Interfaces.Services.Theme
+@using SAMACDX.MudBlazor.ThemeManager.Persistence.Entities.ThemeCatalog
+@using SAMACDX.MudBlazor.ThemeManager.Persistence.Utilities
+@using ThemePreset = MudBlazor.ThemeManager.MudThemeManager.ThemePreset;
+
+
+@inject IThemeManagerService ThemeManagerService
+@inject IThemeCatalogService ThemeCatalogService
+@inject IThemePresentService ThemePresentService
+
+<MudPaper Class="py-8 my-8" Style="overflow:hidden; position:relative;">
+    <MudDrawerContainer Class="mud-height-full px-6">
+        <MudGrid Class="py-2" Justify="Justify.SpaceBetween">
+            <MudItem xs="9">
+                <MudPaper Class="m-6 p-6" Elevation="0">
+                    <MudStack Spacing="2">
+                        <MudText Class="pb-2" Typo="Typo.h4">
+                            Configurador de Tema Visual
+                        </MudText>
+
+                        <MudText Typo="Typo.body1">
+                            Personaliza la apariencia de la plataforma ajustando colores, tipografías, elevaciones y estilos de componentes.
+                            Los cambios permiten adaptar la interfaz a las necesidades institucionales o preferencias del usuario.
+                        </MudText>
+
+                        <MudText Typo="Typo.body2">
+                            En la parte <b>izquierda</b> encontrarás un <i>preview</i> en tiempo real que muestra cómo se verá la interfaz al configurar un nuevo tema visual.
+                            En la parte <b>derecha</b>, un panel lateral te permitirá <b>guardar el tema</b>, <b>seleccionar configuraciones previas</b>
+                            y <b>modificar los colores</b> de los diferentes elementos de la plataforma.
+                        </MudText>
+                    </MudStack>
+                </MudPaper>
+
+            </MudItem>
+            <MudItem>
+                <MudPaper Elevation="0" Class="px-2 d-flex justify-center flex-wrap" Width="280px">
+                    <MudTextField T="string" @bind-Value="nameTheme" Label="Nombre del Tema" Required="true" RequiredError="@nameThemeErrorMessage" Error="@nameThemeError" ErrorText="@nameThemeErrorMessage" Variant="Variant.Text" Clearable="true" AdornmentColor="Color.Primary" Immediate="true" Class="pa-4" />
+                    <MudButton Disabled="!ValidateThemeName() || isSavingThemeCatalog" Variant="Variant.Filled" Color="Color.Primary" OnClick="saveThemeCatalog">
+                        @if (isSavingThemeCatalog)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Guardando</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Guardar Configuración</MudText>
+                        }
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+        <MudThemeManager Theme="themeManagerTheme" ThemeChanged="UpdateTheme" ThemePresets="@themePresets" ThemePresetsChanged="updateThemePreset"
+                         OnClickActiveThemePresent="OnClickActiveThemePresent" IsSavingActiveThemeCatalog="@isSavingActiveThemeCatalog" />
+        <div class="d-flex justify-center align-center mud-height-full">
+            <ComponentsPreview />
+        </div>
+    </MudDrawerContainer>
+</MudPaper>
+
+
+@code {
+
+    private string? nameTheme;
+    private bool nameThemeError = false;
+    private string nameThemeErrorMessage = "El campo es obligatorio";
+    private bool isSavingThemeCatalog = false;
+    private bool isSavingActiveThemeCatalog = false;
+
+    private Dictionary<int, ThemePreset> themePresets = new Dictionary<int, ThemePreset>();
+    private List<ThemeCatalog>? themesCatalog;
+    private ThemeManagerTheme themeManagerTheme = new ThemeManagerTheme();
+    private ThemeCatalog? themeCatalogActive;
+    private ThemeCatalog? newThemeCatalog;
+    private ThemePresent? selectedThemePresent;
+
+    [Parameter]
+    public EventCallback<ThemeCatalog> ThemeCatalogChanged { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {       
+        await GetThemesCatalog();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {            
+            await GetActiveThemeManagerTheme();
+        }
+    }
+
+    private async Task GetActiveThemeManagerTheme()
+    {
+        themeCatalogActive = await ThemeCatalogService.GetActiveAsync();
+
+        if (themeCatalogActive?.ThemePresent?.JsonData != null)
+        {
+            themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(themeCatalogActive.ThemePresent.JsonData)!;            
+
+            await ThemeCatalogChanged.InvokeAsync(themeCatalogActive);
+        }
+    }
+
+    private async Task GetThemesCatalog()
+    {
+        themesCatalog = await ThemeCatalogService.GetAllAsync();
+
+        themePresets = themesCatalog.ToDictionary(
+            themeCatalog => themeCatalog.Id,
+            themeCatalog => new ThemePreset(themeCatalog.Id, themeCatalog.Name, themeCatalog.IsActive)
+        );
+    }
+
+    private void AddThemesCatalog(ThemeCatalog newThemeCatalog)
+    {
+        if (newThemeCatalog != null && themesCatalog != null)
+        {
+            themesCatalog.Add(newThemeCatalog);
+        }
+        else if (newThemeCatalog != null)
+        {
+            themesCatalog = new List<ThemeCatalog> { newThemeCatalog };
+        }
+    }
+
+    private void UpdateTheme(ThemeManagerTheme updateThemeManagerTheme)
+    {
+        themeManagerTheme = updateThemeManagerTheme;
+
+        ThemeManagerService.ChangeTheme(updateThemeManagerTheme);
+
+        StateHasChanged();
+    }
+
+    private async Task saveThemeCatalog()
+    {
+        isSavingThemeCatalog = true;
+        if (ValidateThemeName())
+        {
+            newThemeCatalog = await ThemeCatalogService.CreateWithThemePresentAsync(
+                new ThemeCatalog { Name = nameTheme! },
+                new ThemePresent { JsonData = JsonHelper.Serialize(themeManagerTheme) }
+            );
+
+            AddThemesCatalog(newThemeCatalog);
+            AddThemePreset(new ThemePreset(newThemeCatalog.Id, newThemeCatalog.Name, newThemeCatalog.IsActive));
+
+            await Task.Delay(2000);
+
+            nameTheme = "";
+            isSavingThemeCatalog = false;
+        }
+    }
+
+    private void AddThemePreset(ThemePreset preset)
+    {
+        if (preset != null)
+        {
+            themePresets[preset.Id] = preset;
+        }
+    }
+
+    private bool ValidateThemeName()
+    {
+        if (string.IsNullOrWhiteSpace(nameTheme))
+        {
+            nameThemeError = true;
+            nameThemeErrorMessage = "El nombre del tema no puede estar vacío";
+            return false;
+        }
+        else
+        {
+            nameThemeError = false;
+            return true;
+        }
+    }
+
+    private async Task updateThemePreset(ThemePreset updateThemePreset)
+    {
+        selectedThemePresent = await ThemePresentService.GetByThemeIdAsync(updateThemePreset.Id);
+
+        ThemeManagerTheme themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(selectedThemePresent.JsonData)!;
+
+        foreach (var key in themePresets.Keys.ToList())
+        {
+            var preset = themePresets[key];
+
+            themePresets[key] = preset with { IsActive = key == updateThemePreset.Id };
+        }
+
+        UpdateTheme(themeManagerTheme);
+
+
+        ThemeCatalog selecteThemeCatalog = themesCatalog.Find((ThemeCatalog themeCatalog) => themeCatalog.Id == updateThemePreset.Id)!;
+
+        await ThemeCatalogChanged.InvokeAsync(selecteThemeCatalog);
+
+    }
+
+    private async Task OnClickActiveThemePresent()
+    {
+        isSavingActiveThemeCatalog = true;
+
+        if (selectedThemePresent != null)
+        {
+            await ThemeCatalogService.ActivateAsync(selectedThemePresent.ThemeCatalogId);
+
+            await GetActiveThemeManagerTheme();
+
+            await Task.Delay(2000);
+
+            isSavingActiveThemeCatalog = false;
+        }
+    }
+}
