@@ -271,3 +271,29 @@ Corrección: se calificó completamente como
 
 De nuevo se borraron `obj\`/`bin\` de `samples/TestHost` tras el cambio de
 `RootNamespace` para evitar artefactos incrementales corruptos.
+
+## Corrección post-migración #5: excepción en runtime "constructors are ambiguous"
+
+Con el build ya en verde (librería y TestHost compilando sin errores), el
+usuario reportó una excepción al ejecutar la app: `InvalidOperationException:
+Unable to activate type 'ThemeLogoRepository<TestDbContext>'. The following
+constructors are ambiguous: .ctor(IDbContextFactory<TestDbContext>) y
+.ctor(TestDbContext)`.
+
+Causa: cada `Theme*Repository<TContext>` tiene, por diseño (para soportar
+tanto un `IDbContextFactory<TContext>` como un `TContext` externo ya
+gestionado por el host - ver comentario en `ServiceCollectionExtensions`),
+dos constructores. `AddThemeManagerPersistence<TContext>()` registraba estos
+repositorios directamente (`services.AddScoped<TService, TImpl>()`), dejando
+que el contenedor de DI de ASP.NET Core eligiera el constructor por
+reflexión. Ese contenedor lanza "ambiguous" en cuanto AMBOS constructores
+resultan resolvibles - y eso ocurre con `AddDbContextFactory<TContext>()` en
+EF Core 8+, que además de `IDbContextFactory<TContext>` deja también
+`TContext` resolvible como scoped.
+
+Corrección: en `Extensions/ServiceCollectionExtensions.cs`, cada repositorio
+ahora se resuelve explícitamente mediante un `CreateRepository<TRepo,
+TContext>(...)` que prefiere `IDbContextFactory<TContext>` cuando está
+registrada, y si no, cae al `TContext` externo - sin dejar la elección de
+constructor al contenedor. No se tocaron las clases de los repositorios ni
+`GenericRepository`.
