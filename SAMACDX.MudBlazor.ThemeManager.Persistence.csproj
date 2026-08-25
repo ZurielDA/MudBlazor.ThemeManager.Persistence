@@ -15,17 +15,25 @@
 		<AssemblyName>SAMACDX.MudBlazor.ThemeManager.Persistence</AssemblyName>
 	</PropertyGroup>
 
-	<!-- External\MudBlazor.ThemeManager is its own project, referenced below via
-	     ProjectReference. Without excluding it here, the default SDK globbing of
-	     this project would ALSO compile its .razor/.cs files directly into this
-	     assembly, producing duplicate component types (RZ9985 "Multiple components
-	     use the tag ..."). GDIP's own .csproj excludes its nested project folders
-	     (including this same External\MudBlazor.ThemeManager) the same way. -->
+	<!-- External\MudBlazor.ThemeManager and samples\TestHost are each their own project
+	     (referenced via ProjectReference below, or standalone). Without excluding them
+	     here, the default SDK globbing of THIS project would ALSO compile their .razor/.cs
+	     files (and even their generated obj\** artifacts) directly into this assembly,
+	     producing duplicate component types (RZ9985 "Multiple components use the tag ..."),
+	     duplicate assembly attributes (CS0579), and unresolved ASP.NET Core Web-only types
+	     that this Razor Class Library doesn't reference (CS0234/CS0246 for Builder, Hosting,
+	     Authorization, IWebHostEnvironment, etc.). GDIP's own .csproj excludes its nested
+	     project folders (including this same External\MudBlazor.ThemeManager) the same way. -->
 	<ItemGroup>
 		<Compile Remove="External\**" />
 		<Content Remove="External\**" />
 		<EmbeddedResource Remove="External\**" />
 		<None Remove="External\**" />
+
+		<Compile Remove="samples\**" />
+		<Content Remove="samples\**" />
+		<EmbeddedResource Remove="samples\**" />
+		<None Remove="samples\**" />
 	</ItemGroup>
 
 	<ItemGroup>
