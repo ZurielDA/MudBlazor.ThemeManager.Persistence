@@ -7,8 +7,12 @@
 		<RootNamespace>SAMACDX.ThemeManager.Persistence.TestHost</RootNamespace>
 	</PropertyGroup>
 
+	<!-- MudBlazor NO se referencia aquí directamente: ya llega de forma transitiva a
+	     través del ProjectReference a la librería (que sí la referencia). Tenerla
+	     declarada en AMBOS proyectos duplica la fuente de sus static web assets
+	     (_content/MudBlazor/*), lo que hace que app.MapStaticAssets() (.NET 9) falle
+	     con 500 al intentar servir MudBlazor.min.css/.js por resolución ambigua. -->
 	<ItemGroup>
-		<PackageReference Include="MudBlazor" Version="8.*" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.*" />
 	</ItemGroup>
 
