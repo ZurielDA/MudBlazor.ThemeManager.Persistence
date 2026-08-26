@@ -297,3 +297,36 @@ TContext>(...)` que prefiere `IDbContextFactory<TContext>` cuando está
 registrada, y si no, cae al `TContext` externo - sin dejar la elección de
 constructor al contenedor. No se tocaron las clases de los repositorios ni
 `GenericRepository`.
+
+## Corrección post-migración #6: 500 al servir el CSS/JS de MudBlazor en TestHost
+
+El usuario reportó que la app ya corría pero no se aplicaba el estilo de
+MudBlazor. En el Network tab del navegador se vio que
+`_content/MudBlazor/MudBlazor.min.css` y `MudBlazor.min.js` devolvían
+**500 Internal Server Error** (no 404), lo que además rompía por completo
+el interop de JS de MudBlazor y terminaba tumbando el circuito de Blazor
+("No interop methods are registered for renderer 1").
+
+Causa: `samples/TestHost.csproj` tenía su propio
+`<PackageReference Include="MudBlazor" ... />` DIRECTO, además de recibir
+MudBlazor de forma transitiva a través del `ProjectReference` a la
+librería (que ya la referencia). Con MudBlazor declarado en dos proyectos
+del mismo árbol, `app.MapStaticAssets()` (el nuevo pipeline de static web
+assets de .NET 9) encontraba dos fuentes para el mismo asset lógico
+(`_content/MudBlazor/...`) y fallaba con 500 al intentar resolverlo/
+servirlo.
+
+Corrección: se quitó el `PackageReference` directo a MudBlazor del
+`.csproj` de TestHost - sigue compilando y funcionando igual porque lo
+recibe transitivamente vía el `ProjectReference` a la librería. Solo debe
+existir una fuente del paquete en todo el árbol.
+
+Nota aparte (no corregida, no reportada como bug de código): también se
+vieron 404 en `/Uploads/favicons/default.svg`, `/Uploads/logos/default.svg`,
+`/Uploads/logos/LogoCentrado.png` y un ícono en `/Uploads/icons/*.svg` -
+son datos de los seeders (`ThemeFaviconsSeeder`/`ThemeLogosSeeder`) que
+referencian nombres de archivo que existían físicamente en el `wwwroot` de
+GDIP pero nunca se migraron como archivos de ejemplo a
+`samples/TestHost/wwwroot/Uploads/`. Es solo un ícono roto en el sample;
+no afecta la funcionalidad. Si se quiere, se pueden agregar imágenes de
+placeholder ahí.
