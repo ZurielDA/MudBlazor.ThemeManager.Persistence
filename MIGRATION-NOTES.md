@@ -330,3 +330,71 @@ GDIP pero nunca se migraron como archivos de ejemplo a
 `samples/TestHost/wwwroot/Uploads/`. Es solo un ícono roto en el sample;
 no afecta la funcionalidad. Si se quiere, se pueden agregar imágenes de
 placeholder ahí.
+
+## Etapa: limpieza de código no utilizado (2026-08-26)
+
+Revisión completa del proyecto `SAMACDX.MudBlazor.ThemeManager.Persistence`
+(excluyendo el submódulo `External/MudBlazor.ThemeManager` y el sample
+`samples/TestHost`, que no son parte del código migrado desde GDIP) en
+busca de código sin consumidores dejado por la extracción. Se verificó cada
+clase, interfaz, método, entidad, servicio, componente, extensión de DI,
+helper, configuración de EF Core, dependencia NuGet, using y namespace
+contra el resto de la solución (incluyendo `samples/TestHost` como
+consumidor real) antes de decidir qué eliminar.
+
+### Eliminado
+
+- **`_Imports.razor`**: se quitaron 3 directivas `@using` sin consumidores:
+  - `System.Net.Http` - ningún `HttpClient`/tipo de ese namespace se usa en
+    ninguno de los 5 componentes de `Components/Theme/`.
+  - `Microsoft.JSInterop` - no hay `@inject IJSRuntime`, `IJSObjectReference`
+    ni `[JSInvokable]` en ningún componente.
+  - `Microsoft.AspNetCore.Components.Web` - ningún tipo de ese namespace
+    (`ChangeEventArgs`, `KeyboardEventArgs`, etc.) se referencia, y ningún
+    componente usa directivas nativas de DOM (`@onclick`, `@bind` sobre
+    `<input>`, etc.) que dependan de él en su código generado: todos los
+    eventos van a través de parámetros propios de MudBlazor (`OnClick`,
+    `FilesChanged`, `ValueChanged`), no de atributos HTML nativos.
+
+### Revisado y conservado (con motivo)
+
+- **Métodos "Guid" de `IGenericRepository<TEntity>`** (`GetByIdAsync(Guid)`,
+  `ExistsAsync(Guid)`) y otros miembros del repositorio genérico sin
+  consumidores actuales dentro de este módulo (`RemoveAsync`,
+  `RemoveRangeAsync`, `UpdateWhereAsync`, `CountAsync`, etc.): son parte de
+  un contrato genérico reutilizable, extraído literalmente del
+  `IGenericRepository` original de GDIP (que sí los usa con otras
+  entidades de clave `Guid` en ese proyecto). No son residuos de la
+  extracción sino capacidad general intencional de la abstracción; quitar
+  métodos de una interfaz pública es además un cambio de contrato, fuera
+  del alcance de esta etapa.
+- **`IThemeManagerService.OnThemeChanged`**: nadie se suscribe a este
+  evento dentro de la librería ni en `samples/TestHost`, pero es el punto
+  de integración público que una app host real (como GDIP) usa para
+  reaccionar a cambios de tema en vivo. No es código muerto, es una
+  extensión pensada para el consumidor.
+- **Todas las entidades, interfaces, repositorios, servicios y los 5
+  componentes de `Components/Theme/`**: se verificó que cada uno tiene al
+  menos un consumidor real (registro en DI, inyección en un componente, o
+  uso en `samples/TestHost`).
+- **Los 5 `PackageReference` del `.csproj`**: los 5 se usan activamente
+  (`Microsoft.AspNetCore.Components.Web` provee el ensamblado donde vive
+  `Microsoft.AspNetCore.Components.Forms.IBrowserFile`, que sí se usa,
+  aunque el namespace `.Web` en sí ya no se importe).
+- **Namespace duplicado `Persistence.Persistence.Seeders.Themes`** (en los
+  5 seeders): es una rareza heredada de la extracción, pero corregirla
+  implicaría un rename de namespace, fuera del alcance de esta etapa
+  (no renombrar). Queda documentada aquí para una futura limpieza si se
+  solicita explícitamente.
+- No se encontraron clases, DTOs, entidades, servicios no registrados,
+  configuraciones de EF Core huérfanas, archivos duplicados/de respaldo, ni
+  referencias funcionales a GDIP (solo comentarios de documentación que
+  explican el origen del código, que sí tienen razón válida para existir).
+
+### Estado del build
+
+No fue posible compilar la librería en esta sesión (sin `dotnet` CLI
+disponible aquí, igual que en todas las correcciones anteriores) - el
+cambio se limita a 3 líneas `@using` sin ningún tipo referenciado en el
+código actual, verificado exhaustivamente por búsqueda de texto en toda la
+solución. Pendiente de que el usuario compile localmente y confirme.
