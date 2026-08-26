@@ -1,5 +1,6 @@
 ﻿@using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 @using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
+@using SAMACDX.ThemeManager.Persistence.Utilities
 @using System.Text.Json
 
 @inject IThemeFaviconService ThemeFaviconService;
@@ -176,7 +177,7 @@
 
     private IBrowserFile _faviconFile = null;
 
-    private string _faviconPreviewPath  = "Uploads/favicons/default.svg";
+    private string _faviconPreviewPath  = ThemeDefaultAssets.DefaultFaviconPath;
     private int _activeFaviconId;
 
     private bool _hasSelectionChanged = false;
@@ -330,7 +331,7 @@
 
     private IBrowserFile _logoFile = null;
 
-    private string _logoPreviewPath = "Uploads/logos/default.svg";
+    private string _logoPreviewPath = ThemeDefaultAssets.DefaultLogoPath;
     private int _activeLogoId;
 
     private bool _hasLogoSelectionChanged = false;

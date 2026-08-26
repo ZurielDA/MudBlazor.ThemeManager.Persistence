@@ -596,3 +596,104 @@ en toda la solución que no quedó ninguna referencia rota a
 `ThemeFavicon`/`ThemeLogo`/`IThemeFaviconRepository`/
 `IThemeLogoRepository`/`ThemeFaviconRepository`/`ThemeLogoRepository`.
 Pendiente de que el usuario compile localmente y confirme.
+
+## Corrección: 404 en `/Uploads/favicons/default.svg` y `/Uploads/logos/default.svg` (2026-08-26)
+
+### Investigación en GDIP
+
+En GDIP, `Components/Features/Theme/ThemeFaviconAndLogoConfig.razor` tiene
+exactamente los mismos dos valores hardcodeados como estado inicial de
+`_faviconPreviewPath`/`_logoPreviewPath` (`"Uploads/favicons/default.svg"`
+y `"Uploads/logos/default.svg"`). Se buscó en todo el repo de GDIP
+(excluyendo `bin`/`obj`/`node_modules`/`.git`) un archivo físico llamado
+`default.svg` bajo cualquier `Uploads/` — **no existe ninguno**. Lo que sí
+existen son archivos subidos por usuarios con nombres aleatorios
+(`wwwroot/Uploads/icons/adx1g43z.ka1.svg`,
+`wwwroot/Uploads/logos/LogoCentrado.png`, etc.), y los seeders
+`ThemeFaviconsSeeder`/`ThemeLogosSeeder` (`GDIP.Infrastructure/Persistences/
+Seeders/Themes/`) insertan una fila `ThemeFavicon`/`ThemeLogo` activa cuyo
+campo `Name` es literalmente `"default.svg"` pero cuyo `Path` apunta a esos
+archivos reales (`/Uploads/icons/adx1g43z.ka1.svg`,
+`/Uploads/logos/LogoCentrado.png`) — nunca a un archivo llamado
+`default.svg` en disco.
+
+Es decir: en GDIP, el string `"Uploads/favicons/default.svg"` nunca fue un
+recurso estático real — es sólo el valor inicial del campo en el
+`@code`, reemplazado por el `Path` real en cuanto `LoadFaviconAsync()`/
+`LoadLogoAsync()` completan (porque GDIP siempre tiene una fila activa
+sembrada). El 404 existía también en GDIP de forma latente (esa ruta
+jamás existió como archivo), sólo que era una petición fallida transitoria
+durante el primer render, invisible en la práctica porque la imagen se
+reemplazaba enseguida por la real. En esta librería el problema se volvió
+permanente porque la etapa de limpieza de seeders (ver más arriba) quitó
+la siembra de datos: ahora, sin ningún `ThemeAsset` activo, el valor
+inicial hardcodeado nunca se reemplaza y el 404 queda expuesto todo el
+tiempo.
+
+### Solución
+
+En vez de replicar ese comportamiento (un nombre de archivo que nunca
+existió), se agregó un recurso predeterminado real, propio de la
+librería, distribuido como Static Web Asset:
+
+- Nuevos `wwwroot/default-assets/favicon.svg` y
+  `wwwroot/default-assets/logo.svg` dentro de
+  `SAMACDX.MudBlazor.ThemeManager.Persistence` (SVGs simples y genéricos,
+  sin pretender ser el arte original de GDIP, que nunca existió como tal).
+  Al ser un proyecto `Microsoft.NET.Sdk.Razor`, cualquier archivo bajo
+  `wwwroot/` se publica automáticamente como Static Web Asset con el
+  prefijo convencional `_content/{AssemblyName}/...` — sin tocar el
+  `.csproj` — exactamente el mismo mecanismo por el que ya funciona
+  `_content/MudBlazor.ThemeManager/MudBlazorThemeManager.css` desde
+  `External/MudBlazor.ThemeManager`.
+- Nuevo `Utilities/ThemeDefaultAssets.cs`: dos constantes,
+  `DefaultFaviconPath` y `DefaultLogoPath`, con la ruta completa
+  `_content/SAMACDX.MudBlazor.ThemeManager.Persistence/default-assets/
+  favicon.svg` (y análoga para logo). Centraliza el string para no
+  duplicar el `AssemblyName` en varios lugares.
+- `Components/Theme/ThemeFaviconAndLogoConfig.razor`: los dos valores
+  iniciales de `_faviconPreviewPath`/`_logoPreviewPath` ahora usan
+  `ThemeDefaultAssets.DefaultFaviconPath`/`DefaultLogoPath` en vez del
+  string `"Uploads/.../default.svg"`. El resto del componente no cambió:
+  en cuanto exista un `ThemeAsset` activo real (subido por el
+  consumidor), `LoadFaviconAsync()`/`LoadLogoAsync()` lo sobreescriben
+  igual que antes — el recurso por defecto de la librería es sólo el
+  fallback inicial, nunca tiene prioridad sobre un asset real.
+
+No se modificó `IThemeFileStorageService`/`LocalFileStorageService` ni la
+forma en que se guardan los archivos subidos por el usuario (eso ya
+estaba correctamente desacoplado de GDIP — escribe al `wwwroot` del
+proyecto consumidor vía `IWebHostEnvironment`, sin ninguna ruta física de
+GDIP involucrada). Tampoco se copiaron archivos manualmente al `wwwroot`
+de `samples/TestHost` — el mecanismo es 100% Static Web Assets.
+
+### Otros recursos estáticos revisados (punto 9)
+
+Se revisaron los 5 componentes de la feature Theme en GDIP
+(`ThemeConfig`, `ThemeFaviconAndLogoConfig`, `ThemePaletteSelector`,
+`ThemeTermConfig`, `ComponentsPreview`) buscando cualquier otra
+referencia a `.css`/`.js`/`.svg`/`.png`/`.ico`/`wwwroot`/`_content`: las
+únicas encontradas fueron estas dos rutas de favicon/logo ya corregidas.
+No quedó ningún otro recurso estático pendiente de migrar para que el
+módulo funcione.
+
+Aparte, en `Components/App.razor` de GDIP el favicon del *sitio* (no el
+de esta pantalla de administración) se establece dinámicamente:
+`<link rel="icon" ... href="@(themeFaviconPath ?? "favicon.ico")" />`,
+leyendo el `ThemeCatalog` activo. Eso vive en el documento host de la
+aplicación consumidora (equivalente a `samples/TestHost/Components/
+App.razor`), no en la librería — es responsabilidad de cada consumidor
+replicarlo si lo desea; no se tocó `samples/TestHost/App.razor` porque
+está fuera del alcance de esta corrección (que es sólo sobre los recursos
+predeterminados de la librería).
+
+### Estado del build
+
+No fue posible compilar en esta sesión (sin `dotnet` CLI disponible). Tras
+agregar archivos nuevos a `wwwroot/`, puede ser necesario un **Rebuild**
+completo (no incremental) en `samples/TestHost` para que el manifiesto de
+Static Web Assets (`staticwebassets.json`/`*.staticwebassets.endpoints.json`
+generados en `obj/`) detecte los dos archivos nuevos — igual que en la
+corrección post-migración #6. Pendiente de que el usuario compile
+localmente y confirme que `/_content/SAMACDX.MudBlazor.ThemeManager.
+Persistence/default-assets/favicon.svg` y `.../logo.svg` cargan sin 404.
