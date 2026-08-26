@@ -776,3 +776,162 @@ interfaz); no hay otro `MudThemeProvider` en toda la solución que
 necesite el mismo ajuste. Pendiente de que el usuario compile localmente,
 abra `/ThemeCatalog` y confirme que mover cualquier color del panel
 actualiza el Preview de inmediato.
+
+## Etapa: reorganización de carpetas y namespaces por responsabilidad (2026-08-26)
+
+Reorganización estructural pedida explícitamente por el usuario: agrupar
+clases, carpetas y namespaces de la librería por responsabilidad (no sólo
+por tipo técnico), eliminando estructuras heredadas de la extracción desde
+GDIP, **sin** tocar `samples/TestHost`, GDIP, el comportamiento funcional
+ni los contratos públicos salvo lo estrictamente necesario para la
+organización. No se agregó funcionalidad nueva ni se rediseñó la API
+pública — eso queda para una etapa posterior.
+
+### Restricción que gobernó todo el reorden: namespaces "congelados"
+
+Antes de mover nada se determinó, por `grep` exhaustivo de todos los
+`using`/`@using SAMACDX...` dentro de `samples/TestHost`, qué namespaces
+de la librería son importados por nombre directamente desde el sample.
+Esos namespaces **no podían cambiar de string** (aunque el sample no deba
+tocarse, cambiarles el nombre le habría roto la compilación):
+
+1. `...Entities.ThemeCatalog` (`ThemeCatalog`, `ThemeAsset`,
+   `ThemeAssetType`, `ThemePresent`)
+2. `...Entities.Theme` (`ThemeTerm`)
+3. `...Interfaces.Services.Theme` (las 7 interfaces de servicio)
+4. `...Interfaces.Services` (`IThemeFileStorageService`, namespace plano)
+5. `...Extensions` (`ServiceCollectionExtensions`)
+
+Estas carpetas/namespaces se dejaron exactamente donde estaban. Esto deja
+dos inconsistencias conocidas, documentadas aquí como pendientes explícitos
+para la etapa de diseño de API pública (no se resolvieron ahora porque
+resolverlas requeriría modificar `samples/TestHost`, fuera de alcance):
+
+- `ThemeTerm` sigue en `Entities.Theme`, un namespace distinto al de las
+  otras 4 entidades (`Entities.ThemeCatalog`) — inconsistencia heredada del
+  original, no introducida ni corregida en esta etapa.
+- `IThemeManagerService` sigue en `Interfaces/Services/Theme/` junto con
+  las demás interfaces de servicio, aunque su implementación
+  (`ThemeManagerService`) sí se movió a la nueva carpeta dedicada
+  `ThemeManagerIntegration/` — la interfaz no pudo acompañarla sin romper
+  el `using` congelado que ya tiene el sample.
+
+### Nueva estructura por responsabilidad
+
+- **`DataAccess/`** (antes `Repositories/` + `Interfaces/Repositories/`):
+  lógica de acceso a datos. `DataAccess/Abstractions/` agrupa
+  `IGenericRepository<T>` y las 4 interfaces `ITheme*Repository`
+  (namespace único `...DataAccess.Abstractions`); `DataAccess/` (raíz)
+  agrupa `GenericRepository` y los 4 repositorios concretos (namespace
+  único `...DataAccess`). Antes estaban repartidos en 3 namespaces
+  distintos (`Interfaces.Repositories`, `Interfaces.Repositories.Theme`,
+  `Repositories`, `Repositories.Theme`); ahora son 2, reflejando
+  exactamente la separación abstracción/implementación.
+- **`Application/`** (antes `Services/` + `Services/Theme/`, namespaces
+  mezclados `Services` y `Services.Theme` sin criterio claro): capa de
+  servicios de aplicación, con dos subcarpetas por relación funcional
+  clara, tal como pidió el usuario ("agrupa por responsabilidad cuando
+  exista una relación funcional clara"):
+  - `Application/Assets/`: `ThemeFaviconService` y `ThemeLogoService`
+    (ambos operan sobre `ThemeAsset`).
+  - `Application/Terminology/`: `TermService`, `ThemeTermService` y
+    `SpanishArticleHelper` — este último se reubicó aquí desde
+    `Utilities/` porque es un helper de gramática española con un único
+    consumidor (`TermService`), no una utilidad genérica; agruparlo junto
+    a su único consumidor refleja mejor su responsabilidad real que
+    dejarlo en una carpeta de utilidades genéricas.
+  - `ThemeCatalogService` y `ThemePresentService` quedan en la raíz de
+    `Application/` (no encajan en ningún subgrupo temático con otro
+    servicio).
+- **`ThemeManagerIntegration/`** (antes `Services/ThemeManagerService.cs`,
+  sin namespace — ver corrección debajo): punto de integración con
+  `MudBlazor.ThemeManager` (el submódulo), separado del resto de
+  `Application/` porque su responsabilidad es puentear con el paquete
+  externo, no lógica de negocio sobre las entidades propias.
+- **`StaticAssets/`** (antes `Utilities/ThemeDefaultAssets.cs`): las
+  constantes de rutas de recursos públicos (`_content/...`) se separaron
+  de `Utilities/` a su propia carpeta, ya que no son una utilidad de
+  código sino la definición de recursos estáticos públicos de la
+  librería — una de las categorías que el usuario pidió mantener separada
+  explícitamente.
+- **`Utilities/`**: ahora contiene únicamente `JsonHelper.cs`, la única
+  utilidad genérica real que queda (sin dependencias de ningún dominio
+  específico de Theme). `SpanishArticleHelper` y `ThemeDefaultAssets`
+  salieron de aquí por las razones ya explicadas.
+- **`Extensions/`, `Entities/`, `Interfaces/`, `Components/`,
+  `wwwroot/`**: sin cambios de contenido más allá de los `using`
+  necesarios (ver debajo); conservan su rol de configuración/DI,
+  entidades, abstracciones congeladas, UI y recursos físicos
+  respectivamente.
+
+### Corrección incluida: `ThemeManagerService` sin namespace
+
+Al mover `Services/ThemeManagerService.cs` a `ThemeManagerIntegration/` se
+aprovechó para corregir un artefacto heredado de la extracción: el archivo
+no declaraba **ningún namespace** (namespace global), lo que obligaba a
+`ServiceCollectionExtensions` a referenciarlo como
+`global::ThemeManagerService`. Ahora vive en
+`SAMACDX.ThemeManager.Persistence.ThemeManagerIntegration` como el resto
+de la librería, y el registro en `ServiceCollectionExtensions` se
+simplificó a `services.AddScoped<IThemeManagerService, ThemeManagerService>()`
+(mismo comportamiento, sin el prefijo `global::`). Es la única línea de
+`ServiceCollectionExtensions.cs` cuyo *comportamiento* en tiempo de
+ejecución es idéntico — el cambio es puramente de resolución de
+namespace/using, no de lógica.
+
+### `Entities` (configuraciones de EF Core) y DTOs/modelos: nada que mover
+
+Se confirmó (ya documentado en la etapa de limpieza anterior, reverificado
+ahora) que este proyecto no tiene ninguna clase `IEntityTypeConfiguration<T>`
+— el modelado es 100% por convención más el atributo
+`[Index(nameof(Name), IsUnique = true)]` directamente sobre `ThemeCatalog`
+— ni DTOs/modelos separados de las entidades (las entidades cumplen ese
+doble rol). No se creó ninguna carpeta `Configurations/`/`Dtos/` vacía ni
+se fabricó contenido para esas categorías, ya que el pedido excluye
+explícitamente agregar funcionalidad.
+
+### Namespaces: mapeo completo (viejo → nuevo)
+
+| Antes | Después |
+|---|---|
+| `Interfaces.Repositories` | `DataAccess.Abstractions` |
+| `Interfaces.Repositories.Theme` | `DataAccess.Abstractions` |
+| `Repositories` | `DataAccess` |
+| `Repositories.Theme` | `DataAccess` |
+| `Services` (Catalog/Present/Term/Logo) | `Application` / `Application.Assets` / `Application.Terminology` |
+| `Services.Theme` (TermService, ThemeFaviconService) | `Application.Terminology` / `Application.Assets` |
+| `Services` (ThemeManagerService, sin namespace) | `ThemeManagerIntegration` |
+| `Utilities` (ThemeDefaultAssets) | `StaticAssets` |
+| `Utilities` (SpanishArticleHelper) | `Application.Terminology` |
+| `Utilities` (JsonHelper) | *(sin cambio)* |
+| `Entities.ThemeCatalog`, `Entities.Theme`, `Interfaces.Services*`, `Extensions` | *(sin cambio — congelados por `samples/TestHost`)* |
+
+### Verificación realizada
+
+- Los 19 `git mv` se completaron sin conflictos; las carpetas vacías
+  resultantes (`Interfaces/Repositories/`, `Repositories/`, `Services/` y
+  sus subcarpetas `Theme/`) se eliminaron.
+- Se re-grepeó todo el árbol de la librería (excluyendo
+  `External/`/`samples/`/`bin/`/`obj/`) sin anclar el patrón al inicio de
+  línea (para no perderse líneas con BOM) y no quedó ninguna referencia a
+  los namespaces viejos (`Interfaces.Repositories`, `Repositories.Theme`,
+  `Services.Theme`, `global::ThemeManagerService`,
+  `Utilities.ThemeDefaultAssets`, `Utilities.SpanishArticleHelper`).
+- Se contaron los archivos `.cs`/`.razor` antes y después del reorden: 40
+  en ambos casos (incluyendo `_Imports.razor`) — ningún archivo se perdió.
+- No se modificó `SAMACDX.MudBlazor.ThemeManager.Persistence.csproj`: el
+  SDK `Microsoft.NET.Sdk.Razor` incluye por globbing implícito cualquier
+  `.cs`/`.razor` bajo la raíz del proyecto (sólo excluye `External\**` y
+  `samples\**`, ya configurado), así que las carpetas nuevas
+  (`Application/`, `DataAccess/`, `ThemeManagerIntegration/`,
+  `StaticAssets/`) se recogen automáticamente sin tocar el `.csproj`.
+- No se tocó `samples/TestHost` en ningún archivo, ni GDIP.
+
+### Estado del build
+
+No fue posible compilar en esta sesión (sin `dotnet` CLI disponible, como
+en toda la migración). Se verificó exhaustivamente por lectura completa de
+cada archivo movido/editado y por búsqueda de texto en toda la solución
+que no quedó ninguna referencia rota a los namespaces/rutas anteriores.
+Pendiente de que el usuario compile localmente (librería + `samples/TestHost`)
+y confirme.

@@ -1,4 +1,4 @@
-﻿namespace SAMACDX.ThemeManager.Persistence.Utilities
+﻿namespace SAMACDX.ThemeManager.Persistence.StaticAssets
 {
     /// <summary>
     /// Rutas de los recursos estáticos predeterminados (favicon/logo) que esta

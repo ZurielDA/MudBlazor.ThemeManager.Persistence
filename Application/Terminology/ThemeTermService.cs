@@ -1,8 +1,8 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
 using SAMACDX.ThemeManager.Persistence.Entities.Theme;
-using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme;
+using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
 
-namespace SAMACDX.ThemeManager.Persistence.Services
+namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
 {
     public class ThemeTermService : IThemeTermService
     {        

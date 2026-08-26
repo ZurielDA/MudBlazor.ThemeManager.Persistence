@@ -1,8 +1,8 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
-using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme;
+using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
-namespace SAMACDX.ThemeManager.Persistence.Repositories.Theme
+namespace SAMACDX.ThemeManager.Persistence.DataAccess
 {
     public class ThemeAssetRepository<TContext> : GenericRepository<ThemeAsset, TContext>, IThemeAssetRepository
         where TContext : DbContext

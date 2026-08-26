@@ -1,8 +1,10 @@
-﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme;
-using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
-using SAMACDX.ThemeManager.Persistence.Repositories.Theme;
-using SAMACDX.ThemeManager.Persistence.Services;
-using SAMACDX.ThemeManager.Persistence.Services.Theme;
+﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
+using SAMACDX.ThemeManager.Persistence.DataAccess;
+using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
+using SAMACDX.ThemeManager.Persistence.Application;
+using SAMACDX.ThemeManager.Persistence.Application.Assets;
+using SAMACDX.ThemeManager.Persistence.Application.Terminology;
+using SAMACDX.ThemeManager.Persistence.ThemeManagerIntegration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -56,7 +58,7 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
                     f => new ThemeTermRepository<TContext>(f),
                     c => new ThemeTermRepository<TContext>(c)));
 
-            services.AddScoped<IThemeManagerService, global::ThemeManagerService>();
+            services.AddScoped<IThemeManagerService, ThemeManagerService>();
             services.AddScoped<IThemeCatalogService, ThemeCatalogService>();
             services.AddScoped<IThemePresentService, ThemePresentService>();
             services.AddScoped<IThemeTermService, ThemeTermService>();

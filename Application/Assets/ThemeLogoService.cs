@@ -1,10 +1,10 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services;
 using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
 using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
-using SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme;
+using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
 using Microsoft.AspNetCore.Components.Forms;
 
-namespace SAMACDX.ThemeManager.Persistence.Services
+namespace SAMACDX.ThemeManager.Persistence.Application.Assets
 {
     public class ThemeLogoService : IThemeLogoService
     {

@@ -1,9 +1,8 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
-using SAMACDX.ThemeManager.Persistence.Utilities;
 using SAMACDX.ThemeManager.Persistence.Entities.Theme;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace SAMACDX.ThemeManager.Persistence.Services.Theme
+namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
 {
     internal class TermService : ITermService
     {
