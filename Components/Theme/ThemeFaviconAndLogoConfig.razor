@@ -46,7 +46,7 @@
                             </MudAvatar>
                         </MudPaper>
                         <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
-                            <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles" Accept="image/*" Class="mx-2">
+                            <MudFileUpload T="IBrowserFile" OnFilesChanged="UploadFiles" Accept="image/*" Class="mx-2">
                                 <ActivatorContent>
                                     <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Image" Size="Size.Small" Color="Color.Secondary" Class="rounded-pill">Cargar</MudButton>
                                 </ActivatorContent>
@@ -111,7 +111,7 @@
                             </MudAvatar>
                         </MudPaper>
                         <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
-                            <MudFileUpload T="IBrowserFile" FilesChanged="UploadLogoFile" Accept="image/png,image/jpeg" Class="mx-2">
+                            <MudFileUpload T="IBrowserFile" OnFilesChanged="UploadLogoFile" Accept="image/png,image/jpeg" Class="mx-2">
                                 <ActivatorContent>
                                     <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Image" Size="Size.Small" Color="Color.Secondary" Class="rounded-pill">Cargar</MudButton>
                                 </ActivatorContent>
@@ -211,9 +211,9 @@
         }
     }
 
-    private async Task UploadFiles(IBrowserFile browserFileTemp)
+    private async Task UploadFiles(InputFileChangeEventArgs args)
     {
-        _faviconFile = browserFileTemp;
+        _faviconFile = args.File;
 
         var buffer = new byte[_faviconFile.Size];
         await _faviconFile.OpenReadStream(50 * 1024 * 1024).ReadAsync(buffer);
@@ -359,9 +359,9 @@
         }
     }
 
-    private async Task UploadLogoFile(IBrowserFile browserFileTemp)
+    private async Task UploadLogoFile(InputFileChangeEventArgs args)
     {
-        _logoFile = browserFileTemp;
+        _logoFile = args.File;
 
         var buffer = new byte[_logoFile.Size];
         await _logoFile.OpenReadStream(50 * 1024 * 1024).ReadAsync(buffer);
