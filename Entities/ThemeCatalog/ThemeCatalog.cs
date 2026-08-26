@@ -1,10 +1,9 @@
-﻿using SAMACDX.ThemeManager.Persistence.Entities.Abstracts;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
 {
     [Index(nameof(Name), IsUnique = true)]
-    public class ThemeCatalog : AuditableEntity
+    public class ThemeCatalog
     {
         public int Id { get; set; }
         

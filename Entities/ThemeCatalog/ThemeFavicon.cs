@@ -1,8 +1,6 @@
-﻿using SAMACDX.ThemeManager.Persistence.Entities.Abstracts;
-
-namespace SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
+﻿namespace SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
 {
-    public class ThemeFavicon : AuditableEntity
+    public class ThemeFavicon
     {
         public int Id { get; set; }
         

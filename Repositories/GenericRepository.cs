@@ -90,13 +90,6 @@ namespace SAMACDX.ThemeManager.Persistence.Repositories
         // -------------------------------
         // Operaciones normales/UnitOfWork
         // -------------------------------
-        public Task<TEntity?> GetByIdAsync(Guid id) =>
-            UseContextAsync(ctx => ctx.Set<TEntity>().FindAsync(id).AsTask());
-
-
-        public Task<TEntity?> GetByIdAsync(int id) =>
-            UseContextAsync(ctx => ctx.Set<TEntity>().FindAsync(id).AsTask());
-
         public Task<IEnumerable<TEntity>> GetAllAsync()
         {
             return UseContextAsync(async ctx =>
@@ -126,14 +119,6 @@ namespace SAMACDX.ThemeManager.Persistence.Repositories
                 return entity;
             });
 
-        public Task<IEnumerable<TEntity>> AddRangeAsync(IEnumerable<TEntity> entities) =>
-            UseContextAsync(async ctx =>
-            {
-                await ctx.Set<TEntity>().AddRangeAsync(entities);
-                if (!UseExternalContext) await ctx.SaveChangesAsync();
-                return entities;
-            });
-
         public Task UpdateAsync(TEntity entity) =>
             UseContextAsync(async ctx =>
             {
@@ -151,32 +136,6 @@ namespace SAMACDX.ThemeManager.Persistence.Repositories
                 if (!UseExternalContext) await ctx.SaveChangesAsync();
             });
 
-        public Task<List<TEntity>> UpdateWhereAsync(Expression<Func<TEntity, bool>> predicate, Dictionary<Expression<Func<TEntity, object>>, object> updates)
-        {
-            return UseContextAsync(async ctx =>
-            {
-                var entities = await ctx.Set<TEntity>().Where(predicate).ToListAsync();
-
-                foreach (var entity in entities)
-                {
-                    foreach (var update in updates)
-                    {
-                        var propertyName = GetPropertyName(update.Key);
-                        var propertyInfo = typeof(TEntity).GetProperty(propertyName);
-                        if (propertyInfo != null)
-                            propertyInfo.SetValue(entity, update.Value);
-                    }
-
-                    ctx.Set<TEntity>().Update(entity);
-                }
-
-                if (!UseExternalContext)
-                    await ctx.SaveChangesAsync();
-
-                return entities;
-            });
-        }
-
         public Task<IEnumerable<TEntity>> UpdateRangeAsync(IEnumerable<TEntity> entities) =>
         UseContextAsync(async ctx =>
         {
@@ -187,52 +146,6 @@ namespace SAMACDX.ThemeManager.Persistence.Repositories
 
             return entities;
         });
-
-        public Task RemoveAsync(TEntity entity) =>
-            UseContextAsync(async ctx =>
-            {
-                var persistedEntity = await FindPersistedEntityAsync(ctx, entity);
-
-                if (persistedEntity is null)
-                {
-                    ctx.Set<TEntity>().Remove(entity);
-                }
-                else
-                {
-                    ctx.Set<TEntity>().Remove(persistedEntity);
-                }
-
-                if (!UseExternalContext) await ctx.SaveChangesAsync();
-            });
-
-        public Task RemoveRangeAsync(IEnumerable<TEntity> entities) =>
-            UseContextAsync(async ctx =>
-            {
-                ctx.Set<TEntity>().RemoveRange(entities);
-
-                if (!UseExternalContext)
-                    await ctx.SaveChangesAsync();
-            });
-
-        public Task<bool> ExistsAsync(Guid id) =>
-            UseContextAsync(async ctx =>
-            {
-                var entity = await ctx.Set<TEntity>().FindAsync(id);
-                return entity != null;
-            });
-
-        public Task<bool> ExistsAsync(int id) =>
-            UseContextAsync(async ctx =>
-            {
-                var entity = await ctx.Set<TEntity>().FindAsync(id);
-                return entity != null;
-            });
-
-        public Task<int> CountAsync(Expression<Func<TEntity, bool>>? predicate = null) =>
-            UseContextAsync(async ctx =>
-                predicate == null
-                    ? await ctx.Set<TEntity>().CountAsync()
-                    : await ctx.Set<TEntity>().CountAsync(predicate));
 
         public IQueryable<TEntity> Query(params Expression<Func<TEntity, object>>[] includes)
         {
@@ -246,33 +159,6 @@ namespace SAMACDX.ThemeManager.Persistence.Repositories
             }
 
             return query;
-        }
-
-        public IQueryable<TEntity> Query(Func<IQueryable<TEntity>, IQueryable<TEntity>> include = null)
-        {
-            var ctx = UseContext();
-
-            IQueryable<TEntity> query = ctx.Set<TEntity>();
-
-            if (include != null)
-                query = include(query);
-
-            return query;
-        }
-
-        private string GetPropertyName<TPropertySource>(Expression<Func<TPropertySource, object>> expression)
-        {
-            if (expression.Body is MemberExpression member)
-            {
-                return member.Member.Name;
-            }
-
-            if (expression.Body is UnaryExpression unary && unary.Operand is MemberExpression memberOperand)
-            {
-                return memberOperand.Member.Name;
-            }
-
-            throw new InvalidOperationException("No se pudo obtener el nombre de la propiedad de la expresión.");
         }
 
         private static async Task<TEntity?> FindPersistedEntityAsync(TContext ctx, TEntity entity)

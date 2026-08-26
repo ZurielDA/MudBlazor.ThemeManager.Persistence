@@ -398,3 +398,91 @@ disponible aquí, igual que en todas las correcciones anteriores) - el
 cambio se limita a 3 líneas `@using` sin ningún tipo referenciado en el
 código actual, verificado exhaustivamente por búsqueda de texto en toda la
 solución. Pendiente de que el usuario compile localmente y confirme.
+
+## Etapa: eliminación de funcionalidad sin propósito (2026-08-26)
+
+Segunda etapa de limpieza, explícitamente solicitada por el usuario: a
+diferencia de la etapa anterior (solo código sin consumidores), esta
+elimina funcionalidad completa que dejó de tener propósito dentro de la
+librería. **Nota**: las secciones "Qué se migró" y "Decisiones de
+desacople" más arriba describen el estado ORIGINAL de la extracción (para
+mantener el historial) - los puntos sobre `AuditableEntity` y los seeders
+ya no reflejan el código actual; lo que sigue es lo vigente.
+
+### 1. `AuditableEntity` eliminada
+
+Se eliminó `Entities/Abstracts/AuditableEntity.cs` por completo (y la
+carpeta `Entities/Abstracts/`, que quedó vacía). Los campos `CreatedAt`,
+`UpdatedAt`, `CreatedByUserId`, `UpdatedByUserId` no eran usados por
+ningún código de la librería (no hay lógica de auditoría tipo
+`ApplyAuditInfo()` aquí; eso era una preocupación exclusivamente del lado
+de GDIP, documentada como paso pendiente de integración). Se quitó
+`: AuditableEntity` de las 5 entidades (`ThemeCatalog`, `ThemeFavicon`,
+`ThemeLogo`, `ThemePresent`, `ThemeTerm`) y el `using` correspondiente. No
+se reemplazó por ninguna otra abstracción de auditoría.
+
+**Importante para una futura integración con GDIP**: el punto 5 de
+"Decisiones de desacople" arriba ya no aplica - `ApplyAuditInfo()` de
+GDIP no necesita (ni puede) escanear una `AuditableEntity` de esta
+librería, porque ya no existe.
+
+### 2. Seeders de Themes eliminados
+
+Se eliminó `Persistence/Seeders/Themes/` completo (5 seeders) y la carpeta
+`Persistence/`, que quedó vacía. La sección "Orden de siembra (seeders)"
+arriba ya no aplica - la librería no siembra datos iniciales.
+
+Como los seeders eran invocados desde `samples/TestHost/Program.cs` (el
+único punto de "inicialización/startup" real en este repo, ya que la
+librería en sí no tiene uno), se ajustó ese archivo para quitar el
+`using` y las 5 llamadas `SeedAsync(db)`, dejando intacto el resto
+(`EnsureCreatedAsync()` para crear el esquema SQLite sigue igual). No se
+tocó la lógica que determina o provee el tema activo por defecto: cuando
+no hay un `ThemeCatalog` con `IsActive = true` en la base de datos,
+`ThemeCatalogService.GetActiveAsync()` sigue devolviendo `null` tal como
+antes, y `ThemePaletteSelector` sigue usando su propio fallback
+(`new ThemeManagerTheme()`, ya presente en el código desde la extracción
+original) - ese es "el tema predeterminado definido por la implementación
+actual" al que se refiere el pedido, no algo sembrado en la base de
+datos.
+
+### 3. `GenericRepository` reducido a lo que se usa
+
+Se verificó, método por método, contra toda la solución (servicios de la
+librería + `samples/TestHost` como consumidor real) qué operaciones de
+`IGenericRepository<TEntity>` / `GenericRepository<TEntity, TContext>`
+tenían al menos un consumidor. Se eliminaron los que no tenían ninguno,
+tanto de la clase como de la interfaz (dejar el método solo en la
+interfaz habría dejado un contrato roto, imposible de implementar sin
+volver a agregar el método):
+
+- `GetByIdAsync(Guid)` / `GetByIdAsync(int)`
+- `AddRangeAsync(IEnumerable<TEntity>)`
+- `UpdateWhereAsync(predicate, updates)` (y su único helper privado,
+  `GetPropertyName<TPropertySource>`, que quedó sin propósito al
+  eliminarse su único llamador)
+- `RemoveAsync(TEntity)`
+- `RemoveRangeAsync(IEnumerable<TEntity>)`
+- `ExistsAsync(Guid)` / `ExistsAsync(int)`
+- `CountAsync(predicate)`
+- `Query(Func<IQueryable<TEntity>, IQueryable<TEntity>> include = null)`
+  (la sobrecarga de composición por delegado; la otra sobrecarga,
+  `Query(params Expression<Func<TEntity, object>>[] includes)`, sí se usa
+  y se conservó)
+
+Se conservaron sin cambios (todos con consumidores confirmados):
+`GetAllAsync()`, `FindAsync(predicate)`, `FirstOrDefaultAsync(predicate)`,
+`AddAsync(entity)`, `UpdateAsync(entity)`, `UpdateRangeAsync(entities)`,
+`Query(params Expression<...>[] includes)`, y los helpers privados/
+protegidos que estos sí usan (`UseContext`, `UseContextAsync` (ambas
+sobrecargas), `UseExternalContext`, `FindPersistedEntityAsync`,
+`GetPrimaryKey`, `IsMissingKeyValue`).
+
+### Estado del build
+
+No fue posible compilar en esta sesión (sin `dotnet` CLI disponible, como
+en toda la migración) - se verificó exhaustivamente por búsqueda de texto
+en toda la solución (librería + `samples/TestHost`) que no quedó ninguna
+referencia rota a `AuditableEntity`, a los seeders eliminados, ni a los
+métodos removidos de `GenericRepository`/`IGenericRepository`. Pendiente
+de que el usuario compile localmente y confirme.

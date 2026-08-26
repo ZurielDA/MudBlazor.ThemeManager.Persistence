@@ -1,8 +1,6 @@
-﻿using SAMACDX.ThemeManager.Persistence.Entities.Abstracts;
-
-namespace SAMACDX.ThemeManager.Persistence.Entities.Theme
+﻿namespace SAMACDX.ThemeManager.Persistence.Entities.Theme
 {
-    public class ThemeTerm  : AuditableEntity
+    public class ThemeTerm
     {
         public int Id { get; set; }
 
