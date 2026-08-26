@@ -1,6 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@inject IThemeManagerService ThemeManagerService
 
-<MudThemeProvider />
+<MudThemeProvider Theme="_themeManagerTheme.Theme" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -16,3 +17,35 @@
         @Body
     </MudMainContent>
 </MudLayout>
+
+@code {
+    // El Preview (Components/Theme/ComponentsPreview.razor) no tiene ningún estado de
+    // tema propio: como cualquier página normal de MudBlazor, hereda sus colores del
+    // MudThemeProvider ambiental vía CascadingValue. Antes, este MudThemeProvider no
+    // tenía Theme enlazado a nada (usaba el tema por defecto de MudBlazor de forma fija),
+    // así que los cambios de paleta desde la barra de personalización (MudThemeManager,
+    // que notifica vía IThemeManagerService.OnThemeChanged) nunca llegaban hasta acá y el
+    // Preview jamás se actualizaba en vivo. Este layout replica el mismo enlace que ya
+    // existe en GDIP (Components/Shared/Layout/MainLayout.razor): suscribirse a
+    // OnThemeChanged y reasignar el Theme del MudThemeProvider para que el cambio se
+    // propague de inmediato.
+    private ThemeManagerTheme _themeManagerTheme = new ThemeManagerTheme();
+
+    protected override void OnInitialized()
+    {
+        ThemeManagerService.OnThemeChanged -= ThemeChangedHandler;
+        ThemeManagerService.OnThemeChanged += ThemeChangedHandler;
+    }
+
+    private Task ThemeChangedHandler(object newTheme)
+    {
+        return InvokeAsync(() =>
+        {
+            if (newTheme is ThemeManagerTheme theme)
+            {
+                _themeManagerTheme = theme;
+                StateHasChanged();
+            }
+        });
+    }
+}

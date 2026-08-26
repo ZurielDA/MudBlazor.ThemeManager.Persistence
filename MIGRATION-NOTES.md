@@ -697,3 +697,82 @@ generados en `obj/`) detecte los dos archivos nuevos — igual que en la
 corrección post-migración #6. Pendiente de que el usuario compile
 localmente y confirme que `/_content/SAMACDX.MudBlazor.ThemeManager.
 Persistence/default-assets/favicon.svg` y `.../logo.svg` cargan sin 404.
+
+## Corrección: el Preview no reflejaba en vivo los cambios de paleta (2026-08-26)
+
+### Flujo revisado
+
+Barra de personalización → estado del tema → Preview:
+
+1. `MudThemeManagerColorItem` (dentro de `External/MudBlazor.ThemeManager`)
+   dispara un cambio de color, que `MudThemeManager.UpdatePalette()` aplica
+   sobre `Theme.Theme.PaletteLight`/`PaletteDark` (mutando el mismo objeto
+   `ThemeManagerTheme` recibido por parámetro) y luego llama a
+   `ThemeChanged.InvokeAsync(Theme)`.
+2. `ThemePaletteSelector.UpdateTheme(ThemeManagerTheme)` recibe ese evento,
+   actualiza su campo local `themeManagerTheme` y llama a
+   `ThemeManagerService.ChangeTheme(...)`, que dispara el evento
+   `IThemeManagerService.OnThemeChanged` — este es el "estado/configuración
+   del tema" compartido (servicio `Scoped`, mismo circuito de Blazor Server).
+3. `Components/Theme/ComponentsPreview.razor` **no tiene ningún estado de
+   tema propio, ni inyecta `IThemeManagerService`**: como cualquier
+   componente MudBlazor normal, sus colores (`Color.Primary`,
+   `Color.Secondary`, etc.) dependen enteramente del `MudThemeProvider`
+   ambiental más cercano (vía `CascadingValue`), que es quien realmente
+   genera las variables CSS del tema. Este archivo es 1:1 idéntico al de
+   GDIP — no es la causa del problema.
+
+### Causa real
+
+`samples/TestHost/Components/Layout/MainLayout.razor` (el único lugar del
+sample donde vive `<MudThemeProvider />`) **no tenía su parámetro `Theme`
+enlazado a nada** y **no se suscribía a `IThemeManagerService.OnThemeChanged`**.
+En GDIP (`Components/Shared/Layout/MainLayout.razor`), el layout sí hace
+ambas cosas: `<MudThemeProvider Theme="themeManager!.Theme" />` y una
+suscripción a `OnThemeChanged` que reasigna `themeManager` y llama
+`StateHasChanged()`. Esa suscripción nunca se replicó al construir
+`samples/TestHost` (es un host de pruebas armado desde cero para esta
+librería, no una extracción literal de GDIP como sí lo son los
+componentes de `Components/Theme/`). Resultado: el evento se disparaba
+correctamente en cada paso 1-2, pero no había ningún oyente que
+actualizara el `MudThemeProvider`, así que sus variables CSS quedaban
+congeladas en el tema por defecto de MudBlazor y el Preview nunca
+cambiaba visualmente — sin importar cuántos colores se editaran.
+
+### Corrección aplicada (mínima)
+
+Se replicó en `samples/TestHost/Components/Layout/MainLayout.razor` el
+mismo enlace que ya existe y funciona en GDIP: se inyecta
+`IThemeManagerService`, se agrega un campo `_themeManagerTheme` (inicia en
+`new ThemeManagerTheme()`, el mismo valor por defecto que ya usaba
+`ThemePaletteSelector`), se enlaza `<MudThemeProvider Theme="
+_themeManagerTheme.Theme" />`, y en `OnInitialized()` se suscribe a
+`OnThemeChanged`; el handler reasigna `_themeManagerTheme` y llama
+`StateHasChanged()` dentro de `InvokeAsync(...)` (el evento puede
+dispararse fuera del contexto de renderizado de este componente). No se
+tocó nada de `Components/Theme/*` (ya estaban correctos), ni la
+persistencia (`ThemeCatalogService`, `ThemePresentService`, etc. sin
+cambios), ni se agregó ninguna funcionalidad nueva más allá de restaurar
+la reactividad que GDIP ya tenía. Deliberadamente NO se replicó la carga
+inicial del tema activo que sí tiene GDIP en su `MainLayout`
+(`GetThemeCatalogActive()` vía `IThemeCatalogService`): eso resuelve un
+problema distinto (qué tema se ve al entrar a la página, antes de editar
+nada) que no fue reportado ni pedido — el pedido era específicamente que
+las ediciones en vivo se reflejen de inmediato, lo cual esta corrección
+ya resuelve por completo, sin guardar ni recargar ni reseleccionar tema
+(seleccionar un preset también pasa por el mismo `UpdateTheme()` →
+`ChangeTheme()`, así que también se refleja igual de inmediato).
+
+### Estado del build
+
+No fue posible compilar en esta sesión (sin `dotnet` CLI disponible). Se
+verificó por revisión de código que: `IThemeManagerService` y
+`ThemeManagerTheme` ya estaban disponibles sin `@using` adicionales
+(`_Imports.razor` de `samples/TestHost` ya importa
+`SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme` y
+`MudBlazor.ThemeManager`); `IThemeManagerService` está registrado como
+`Scoped` (mismo circuito que `ThemePaletteSelector`, que inyecta la misma
+interfaz); no hay otro `MudThemeProvider` en toda la solución que
+necesite el mismo ajuste. Pendiente de que el usuario compile localmente,
+abra `/ThemeCatalog` y confirme que mover cualquier color del panel
+actualiza el Preview de inmediato.
