@@ -16,6 +16,21 @@ namespace SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions
 
         Task<IEnumerable<TEntity>> UpdateRangeAsync(IEnumerable<TEntity> entities);
 
+        /// <summary>
+        /// Elimina la entidad dada. La entidad no necesita estar rastreada por
+        /// ningun DbContext: basta con que tenga la clave primaria establecida.
+        /// </summary>
+        Task RemoveAsync(TEntity entity);
+
         IQueryable<TEntity> Query(params Expression<Func<TEntity, object>>[] includes);
+
+        /// <summary>
+        /// Variante de <see cref="Query(Expression{Func{TEntity, object}}[])"/> que
+        /// permite componer la consulta libremente (por ejemplo, para usar
+        /// .ThenInclude en grafos anidados, algo que la sobrecarga de
+        /// Expression[] no soporta). El shaper recibe el IQueryable base
+        /// (ctx.Set&lt;TEntity&gt;()) y debe devolver el IQueryable final.
+        /// </summary>
+        IQueryable<TEntity> Query(Func<IQueryable<TEntity>, IQueryable<TEntity>> shape);
     }
 }

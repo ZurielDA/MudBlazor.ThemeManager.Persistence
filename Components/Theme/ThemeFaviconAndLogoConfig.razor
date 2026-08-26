@@ -1,10 +1,14 @@
 ﻿@using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
+@using SAMACDX.ThemeManager.Persistence.Interfaces.Services
 @using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
+@using SAMACDX.ThemeManager.Persistence.Application
+@using SAMACDX.ThemeManager.Persistence.Extensions
 @using SAMACDX.ThemeManager.Persistence.StaticAssets
 @using System.Text.Json
 
 @inject IThemeFaviconService ThemeFaviconService;
 @inject IThemeLogoService ThemeLogoService;
+@inject ThemeManagerPersistenceOptions Options
 @inject ISnackbar SnackbarService
 
 <MudPaper Class="py-8 my-8" Style="overflow:hidden; position:relative;">
@@ -52,7 +56,7 @@
                                 </ActivatorContent>
                             </MudFileUpload>                                
                             <MudPaper Elevation="4" Class="rounded-pill mx-2">
-                                <MudButton Disabled="_faviconFile == null || _isSavingThemeFavicon" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveFaviconAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
+                                <MudButton Disabled="_faviconFileBytes == null || _isSavingThemeFavicon" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveFaviconAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
                                     @if (_isSavingThemeFavicon)
                                     {
                                         <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -117,7 +121,7 @@
                                 </ActivatorContent>
                             </MudFileUpload>
                             <MudPaper Elevation="4" Class="rounded-pill mx-2">
-                                <MudButton Disabled="_logoFile == null || _isSavingThemeLogo" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveLogoAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
+                                <MudButton Disabled="_logoFileBytes == null || _isSavingThemeLogo" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveLogoAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
                                     @if (_isSavingThemeLogo)
                                     {
                                         <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -170,12 +174,17 @@
     public ThemeCatalog? SelectThemeCatalog { get; set; }
 
     /*
-     * Sección de favicon
+     * Seccion de favicon
      */
     
     private List<ThemeAsset> _themeFavicons = new List<ThemeAsset>();
 
-    private IBrowserFile _faviconFile = null;
+    // IBrowserFile queda confinado a este componente: la capa de aplicacion/
+    // persistencia (IThemeFaviconService/IThemeFileStorageService) ya no lo
+    // conoce, solo recibe un ThemeAssetFileContent con el contenido ya leido.
+    private byte[]? _faviconFileBytes;
+    private string? _faviconFileName;
+    private string? _faviconContentType;
 
     private string _faviconPreviewPath  = ThemeDefaultAssets.DefaultFaviconPath;
     private int _activeFaviconId;
@@ -186,8 +195,15 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        await LoadFaviconAsync();
-        await LoadLogoAsync();
+        try
+        {
+            await LoadFaviconAsync();
+            await LoadLogoAsync();
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo cargar la configuracion de favicon/logo.", Severity.Error);
+        }
     }
 
     private async Task LoadFaviconAsync()
@@ -213,57 +229,98 @@
 
     private async Task UploadFiles(InputFileChangeEventArgs args)
     {
-        _faviconFile = args.File;
+        var file = args.File;
 
-        var buffer = new byte[_faviconFile.Size];
-        await _faviconFile.OpenReadStream(50 * 1024 * 1024).ReadAsync(buffer);
+        if (file.Size > Options.MaxUploadSizeBytes)
+        {
+            SnackbarService.Add($"El archivo supera el tamaño maximo permitido ({Options.MaxUploadSizeBytes / 1024 / 1024} MB).", Severity.Warning);
+            return;
+        }
 
-        var base64 = Convert.ToBase64String(buffer);
+        var buffer = new byte[file.Size];
 
-        var contentType = _faviconFile.ContentType;
-        _faviconPreviewPath  = $"data:{contentType};base64,{base64}";
+        await using (var stream = file.OpenReadStream(Options.MaxUploadSizeBytes))
+        {
+            await stream.ReadAsync(buffer);
+        }
+
+        _faviconFileBytes = buffer;
+        _faviconFileName = file.Name;
+        _faviconContentType = file.ContentType;
+
+        _faviconPreviewPath = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
     }
     
     private void resetUploadFile()
     {
-        _isSavingThemeFavicon = false;
-        _faviconFile = null;
+        _faviconFileBytes = null;
+        _faviconFileName = null;
+        _faviconContentType = null;
     }
 
     private async Task SaveFaviconAsync()
     {
+        if (SelectThemeCatalog?.Id is null)
+        {
+            SnackbarService.Add("Selecciona un tema antes de guardar un favicon.", Severity.Warning);
+            return;
+        }
+
+        if (_faviconFileBytes is null || _faviconFileName is null)
+        {
+            return;
+        }
+
         _isSavingThemeFavicon = true;
 
-        ThemeAsset newThemeFavicon = await ThemeFaviconService.CreateAsync(new ThemeAsset
+        try
         {
-            ThemeCatalogId = SelectThemeCatalog.Id,
-            Name = _faviconFile.Name
-        },
-            _faviconFile
-        );
+            var content = new ThemeAssetFileContent(
+                new MemoryStream(_faviconFileBytes),
+                _faviconFileName,
+                _faviconContentType ?? "application/octet-stream",
+                _faviconFileBytes.Length);
 
-        _themeFavicons.Add(newThemeFavicon);
-
-        await Task.Delay(2000);
-
-        resetUploadFile();
-
-        SnackbarService.Add(
-            @<div>
-                <h3>Éxito</h3>
-                <ul>
-                    <li>Se guardo el favicon con éxito</li>
-                </ul>
-            </div>
-    ,
-            Severity.Success,
-            config =>
+            ThemeAsset newThemeFavicon = await ThemeFaviconService.CreateAsync(new ThemeAsset
             {
-                config.RequireInteraction = true;
-                config.ShowCloseIcon = true;
-            }
-        );
+                ThemeCatalogId = SelectThemeCatalog.Id,
+                Name = _faviconFileName
+            },
+                content
+            );
 
+            _themeFavicons.Add(newThemeFavicon);
+
+            resetUploadFile();
+
+            SnackbarService.Add(
+                @<div>
+                    <h3>Éxito</h3>
+                    <ul>
+                        <li>Se guardo el favicon con éxito</li>
+                    </ul>
+                </div>
+        ,
+                Severity.Success,
+                config =>
+                {
+                    config.RequireInteraction = true;
+                    config.ShowCloseIcon = true;
+                }
+            );
+        }
+        catch (ThemeValidationException ex)
+        {
+            SnackbarService.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo guardar el favicon. Intenta nuevamente.", Severity.Error);
+        }
+        finally
+        {
+            _isSavingThemeFavicon = false;
+        }
     }
    
     private void OnActivateFaviconAsyncChanged(int newValue)
@@ -271,9 +328,9 @@
         _faviconPreviewPath  = _themeFavicons.FirstOrDefault(t => t.Id == newValue)?.Path;
         _activeFaviconId = newValue;
 
-        int fiviconActiveId = _themeFavicons.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
+        int faviconActiveId = _themeFavicons.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
 
-        if (fiviconActiveId != newValue)
+        if (faviconActiveId != newValue)
         {
             _hasSelectionChanged = true;
         }
@@ -287,49 +344,57 @@
 
     private async Task ActivateFaviconAsync()
     {
+        if (SelectThemeCatalog?.Id is null)
+        {
+            return;
+        }
+
         _isActivatingThemeFavicon = true;
 
-        _themeFavicons = await ThemeFaviconService.ActivateAsync(SelectThemeCatalog.Id, _activeFaviconId);
+        try
+        {
+            _themeFavicons = await ThemeFaviconService.ActivateAsync(SelectThemeCatalog.Id, _activeFaviconId);
 
-        resetActivateFavicon();
+            _hasSelectionChanged = false;
 
-        await Task.Delay(2000);
-
-        StateHasChanged();
-
-        SnackbarService.Add(
-            @<div>
-                <h3>Éxito</h3>
-                <ul>
-                    <li>Se activo el favicon con éxito</li>
-                </ul>
-            </div>,
-            Severity.Success,
-            config =>
-            {
-                config.RequireInteraction = true;
-                config.ShowCloseIcon = true;
-            }
-        );
+            SnackbarService.Add(
+                @<div>
+                    <h3>Éxito</h3>
+                    <ul>
+                        <li>Se activo el favicon con éxito</li>
+                    </ul>
+                </div>,
+                Severity.Success,
+                config =>
+                {
+                    config.RequireInteraction = true;
+                    config.ShowCloseIcon = true;
+                }
+            );
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo activar el favicon. Intenta nuevamente.", Severity.Error);
+        }
+        finally
+        {
+            _isActivatingThemeFavicon = false;
+        }
     }    
-
-    private void resetActivateFavicon()
-    {
-        _hasSelectionChanged = false;
-        _isActivatingThemeFavicon = false;
-    }
 
     /*
      * 
      */
 
     /*
-     * Sección de Logotipo
+     * Seccion de Logotipo
      */
 
     private List<ThemeAsset> _themeLogos = new List<ThemeAsset>();
 
-    private IBrowserFile _logoFile = null;
+    private byte[]? _logoFileBytes;
+    private string? _logoFileName;
+    private string? _logoContentType;
 
     private string _logoPreviewPath = ThemeDefaultAssets.DefaultLogoPath;
     private int _activeLogoId;
@@ -361,55 +426,97 @@
 
     private async Task UploadLogoFile(InputFileChangeEventArgs args)
     {
-        _logoFile = args.File;
+        var file = args.File;
 
-        var buffer = new byte[_logoFile.Size];
-        await _logoFile.OpenReadStream(50 * 1024 * 1024).ReadAsync(buffer);
+        if (file.Size > Options.MaxUploadSizeBytes)
+        {
+            SnackbarService.Add($"El archivo supera el tamaño maximo permitido ({Options.MaxUploadSizeBytes / 1024 / 1024} MB).", Severity.Warning);
+            return;
+        }
 
-        var base64 = Convert.ToBase64String(buffer);
-        var contentType = _logoFile.ContentType;
-        _logoPreviewPath = $"data:{contentType};base64,{base64}";
+        var buffer = new byte[file.Size];
+
+        await using (var stream = file.OpenReadStream(Options.MaxUploadSizeBytes))
+        {
+            await stream.ReadAsync(buffer);
+        }
+
+        _logoFileBytes = buffer;
+        _logoFileName = file.Name;
+        _logoContentType = file.ContentType;
+
+        _logoPreviewPath = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
     }
 
     private void resetUploadLogoFile()
     {
-        _isSavingThemeLogo = false;
-        _logoFile = null;
+        _logoFileBytes = null;
+        _logoFileName = null;
+        _logoContentType = null;
     }
 
     private async Task SaveLogoAsync()
     {
+        if (SelectThemeCatalog?.Id is null)
+        {
+            SnackbarService.Add("Selecciona un tema antes de guardar un logo.", Severity.Warning);
+            return;
+        }
+
+        if (_logoFileBytes is null || _logoFileName is null)
+        {
+            return;
+        }
+
         _isSavingThemeLogo = true;
 
-        ThemeAsset newThemeLogo = await ThemeLogoService.CreateAsync(new ThemeAsset
+        try
         {
-            ThemeCatalogId = SelectThemeCatalog.Id,
-            Name = _logoFile.Name
-        },
-            _logoFile
-        );
+            var content = new ThemeAssetFileContent(
+                new MemoryStream(_logoFileBytes),
+                _logoFileName,
+                _logoContentType ?? "application/octet-stream",
+                _logoFileBytes.Length);
 
-        _themeLogos.Add(newThemeLogo);
-
-        await Task.Delay(2000);
-
-        resetUploadLogoFile();
-
-        SnackbarService.Add(
-            @<div>
-                <h3>Éxito</h3>
-                <ul>
-                    <li>Se guardo el logo con éxito</li>
-                </ul>
-            </div>,
-            Severity.Success,
-            config =>
+            ThemeAsset newThemeLogo = await ThemeLogoService.CreateAsync(new ThemeAsset
             {
-                config.RequireInteraction = true;
-                config.ShowCloseIcon = true;
-            }
-        );
+                ThemeCatalogId = SelectThemeCatalog.Id,
+                Name = _logoFileName
+            },
+                content
+            );
 
+            _themeLogos.Add(newThemeLogo);
+
+            resetUploadLogoFile();
+
+            SnackbarService.Add(
+                @<div>
+                    <h3>Éxito</h3>
+                    <ul>
+                        <li>Se guardo el logo con éxito</li>
+                    </ul>
+                </div>,
+                Severity.Success,
+                config =>
+                {
+                    config.RequireInteraction = true;
+                    config.ShowCloseIcon = true;
+                }
+            );
+        }
+        catch (ThemeValidationException ex)
+        {
+            SnackbarService.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo guardar el logo. Intenta nuevamente.", Severity.Error);
+        }
+        finally
+        {
+            _isSavingThemeLogo = false;
+        }
     }
 
     private void OnActivateLogoAsyncChanged(int newValue)
@@ -417,9 +524,9 @@
         _logoPreviewPath = _themeLogos.FirstOrDefault(t => t.Id == newValue)?.Path;
         _activeLogoId = newValue;
 
-        int fiviconActiveId = _themeLogos.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
+        int logoActiveId = _themeLogos.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
 
-        if (fiviconActiveId != newValue)
+        if (logoActiveId != newValue)
         {
             _hasLogoSelectionChanged = true;
         }
@@ -433,36 +540,42 @@
 
     private async Task ActivateLogoAsync()
     {
+        if (SelectThemeCatalog?.Id is null)
+        {
+            return;
+        }
+
         _isActivatingThemeLogo = true;
 
-        _themeLogos = await ThemeLogoService.ActivateAsync(SelectThemeCatalog.Id, _activeLogoId);
+        try
+        {
+            _themeLogos = await ThemeLogoService.ActivateAsync(SelectThemeCatalog.Id, _activeLogoId);
 
-        resetActivateLogo();
+            _hasLogoSelectionChanged = false;
 
-        await Task.Delay(2000);
-
-        StateHasChanged();
-
-        SnackbarService.Add(
-            @<div>
-                <h3>Éxito</h3>
-                <ul>
-                    <li>Se activo el logo con éxito</li>
-                </ul>
-            </div>,
-            Severity.Success,
-            config =>
-            {
-                config.RequireInteraction = true;
-                config.ShowCloseIcon = true;
-            }
-        );
-    }
-
-    private void resetActivateLogo()
-    {
-        _hasLogoSelectionChanged = false;
-        _isActivatingThemeLogo = false;
+            SnackbarService.Add(
+                @<div>
+                    <h3>Éxito</h3>
+                    <ul>
+                        <li>Se activo el logo con éxito</li>
+                    </ul>
+                </div>,
+                Severity.Success,
+                config =>
+                {
+                    config.RequireInteraction = true;
+                    config.ShowCloseIcon = true;
+                }
+            );
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo activar el logo. Intenta nuevamente.", Severity.Error);
+        }
+        finally
+        {
+            _isActivatingThemeLogo = false;
+        }
     }
 
     /*

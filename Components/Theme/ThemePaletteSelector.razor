@@ -1,5 +1,6 @@
 ﻿@using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 @using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
+@using SAMACDX.ThemeManager.Persistence.Application
 @using SAMACDX.ThemeManager.Persistence.Utilities
 @using ThemePreset = MudBlazor.ThemeManager.MudThemeManager.ThemePreset;
 
@@ -7,6 +8,7 @@
 @inject IThemeManagerService ThemeManagerService
 @inject IThemeCatalogService ThemeCatalogService
 @inject IThemePresentService ThemePresentService
+@inject ISnackbar SnackbarService
 
 <MudPaper Class="py-8 my-8" Style="overflow:hidden; position:relative;">
     <MudDrawerContainer Class="mud-height-full px-6">
@@ -78,14 +80,28 @@
 
     protected override async Task OnInitializedAsync()
     {       
-        await GetThemesCatalog();
+        try
+        {
+            await GetThemesCatalog();
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudieron cargar los temas guardados.", Severity.Error);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
-        {            
-            await GetActiveThemeManagerTheme();
+        {
+            try
+            {
+                await GetActiveThemeManagerTheme();
+            }
+            catch (Exception)
+            {
+                SnackbarService.Add("No se pudo cargar el tema activo.", Severity.Error);
+            }
         }
     }
 
@@ -123,19 +139,30 @@
         }
     }
 
-    private void UpdateTheme(ThemeManagerTheme updateThemeManagerTheme)
+    private async Task UpdateTheme(ThemeManagerTheme updateThemeManagerTheme)
     {
         themeManagerTheme = updateThemeManagerTheme;
 
-        ThemeManagerService.ChangeTheme(updateThemeManagerTheme);
+        // ChangeTheme ya no lanza si nadie esta suscrito a OnThemeChanged (ver
+        // ThemeManagerIntegration/ThemeManagerService.cs), pero de todas
+        // formas se espera (await) en vez de "fire-and-forget": antes no se
+        // esperaba, lo que dejaba cualquier excepcion futura de un suscriptor
+        // como una excepcion de tarea no observada.
+        await ThemeManagerService.ChangeTheme(updateThemeManagerTheme);
 
         StateHasChanged();
     }
 
     private async Task saveThemeCatalog()
     {
+        if (!ValidateThemeName())
+        {
+            return;
+        }
+
         isSavingThemeCatalog = true;
-        if (ValidateThemeName())
+
+        try
         {
             newThemeCatalog = await ThemeCatalogService.CreateWithThemePresentAsync(
                 new ThemeCatalog { Name = nameTheme! },
@@ -145,9 +172,19 @@
             AddThemesCatalog(newThemeCatalog);
             AddThemePreset(new ThemePreset(newThemeCatalog.Id, newThemeCatalog.Name, newThemeCatalog.IsActive));
 
-            await Task.Delay(2000);
-
             nameTheme = "";
+        }
+        catch (ThemeValidationException ex)
+        {
+            nameThemeError = true;
+            nameThemeErrorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo guardar el tema. Intenta nuevamente.", Severity.Error);
+        }
+        finally
+        {
             isSavingThemeCatalog = false;
         }
     }
@@ -177,38 +214,61 @@
 
     private async Task updateThemePreset(ThemePreset updateThemePreset)
     {
-        selectedThemePresent = await ThemePresentService.GetByThemeIdAsync(updateThemePreset.Id);
-
-        ThemeManagerTheme themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(selectedThemePresent.JsonData)!;
-
-        foreach (var key in themePresets.Keys.ToList())
+        try
         {
-            var preset = themePresets[key];
+            selectedThemePresent = await ThemePresentService.GetByThemeIdAsync(updateThemePreset.Id);
 
-            themePresets[key] = preset with { IsActive = key == updateThemePreset.Id };
+            if (selectedThemePresent?.JsonData is null)
+            {
+                SnackbarService.Add("No se encontro la configuracion visual de ese tema.", Severity.Warning);
+                return;
+            }
+
+            ThemeManagerTheme themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(selectedThemePresent.JsonData)!;
+
+            foreach (var key in themePresets.Keys.ToList())
+            {
+                var preset = themePresets[key];
+
+                themePresets[key] = preset with { IsActive = key == updateThemePreset.Id };
+            }
+
+            await UpdateTheme(themeManagerTheme);
+
+            ThemeCatalog? selecteThemeCatalog = themesCatalog?.Find((ThemeCatalog themeCatalog) => themeCatalog.Id == updateThemePreset.Id);
+
+            if (selecteThemeCatalog is not null)
+            {
+                await ThemeCatalogChanged.InvokeAsync(selecteThemeCatalog);
+            }
         }
-
-        UpdateTheme(themeManagerTheme);
-
-
-        ThemeCatalog selecteThemeCatalog = themesCatalog.Find((ThemeCatalog themeCatalog) => themeCatalog.Id == updateThemePreset.Id)!;
-
-        await ThemeCatalogChanged.InvokeAsync(selecteThemeCatalog);
-
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo cambiar la vista previa del tema.", Severity.Error);
+        }
     }
 
     private async Task OnClickActiveThemePresent()
     {
+        if (selectedThemePresent is null)
+        {
+            return;
+        }
+
         isSavingActiveThemeCatalog = true;
 
-        if (selectedThemePresent != null)
+        try
         {
             await ThemeCatalogService.ActivateAsync(selectedThemePresent.ThemeCatalogId);
 
             await GetActiveThemeManagerTheme();
-
-            await Task.Delay(2000);
-
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo activar el tema. Intenta nuevamente.", Severity.Error);
+        }
+        finally
+        {
             isSavingActiveThemeCatalog = false;
         }
     }

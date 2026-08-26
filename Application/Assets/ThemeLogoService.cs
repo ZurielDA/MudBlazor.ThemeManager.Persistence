@@ -2,56 +2,32 @@
 using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
 using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
 using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
-using Microsoft.AspNetCore.Components.Forms;
+using SAMACDX.ThemeManager.Persistence.Extensions;
 
 namespace SAMACDX.ThemeManager.Persistence.Application.Assets
 {
     public class ThemeLogoService : IThemeLogoService
     {
-        private readonly IThemeFileStorageService _fileStorageService;
-        private readonly IThemeAssetRepository _themeAssetRepository;
+        private readonly ThemeAssetOperations _operations;
 
-        public ThemeLogoService(IThemeFileStorageService fileStorageService, IThemeAssetRepository themeAssetRepository)
+        public ThemeLogoService(IThemeFileStorageService fileStorageService, IThemeAssetRepository themeAssetRepository, ThemeManagerPersistenceOptions options)
         {
-            _fileStorageService = fileStorageService;
-            _themeAssetRepository = themeAssetRepository;
+            _operations = new ThemeAssetOperations(
+                themeAssetRepository,
+                fileStorageService,
+                ThemeAssetType.Logo,
+                options.LogoUploadFolder,
+                options.AllowedAssetContentTypes);
         }
 
-        public async Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id)
-        {
-            var result = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == id && t.Type == ThemeAssetType.Logo);
+        public Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id) => _operations.GetAllByThemeCatalogIdAsync(id);
 
-            return result.ToList();
-        }
+        public Task<ThemeAsset> CreateAsync(ThemeAsset themeLogo, ThemeAssetFileContent file) => _operations.CreateAsync(themeLogo, file);
 
-        public async Task<ThemeAsset> CreateAsync(ThemeAsset themeLogo, IBrowserFile file)
-        {
-            string path = await _fileStorageService.SaveFileAsync(file, "Uploads/logos");
+        public Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeLogoId) => _operations.ActivateAsync(themeCatalogId, themeLogoId);
 
-            themeLogo.Path = path;
-            themeLogo.Type = ThemeAssetType.Logo;
+        public Task<string> GetCurrentLogoPathAsync() => _operations.GetCurrentPathAsync();
 
-            return await _themeAssetRepository.AddAsync(themeLogo);
-        }
-
-        public async Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeLogoId)
-        {
-            var logos = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == themeCatalogId && t.Type == ThemeAssetType.Logo);
-
-            logos.ToList().ForEach(t => t.IsActive = t.Id == themeLogoId);
-
-            await _themeAssetRepository.UpdateRangeAsync(logos);
-
-            return logos.ToList();
-        }
-
-        public async Task<string> GetCurrentLogoPathAsync()
-        {
-            var logos = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == 1 && t.Type == ThemeAssetType.Logo);
-
-            var activeLogo = logos.FirstOrDefault(l => l.IsActive);
-
-            return activeLogo?.Path ?? string.Empty;
-        }
+        public Task DeleteAsync(int themeLogoId) => _operations.DeleteAsync(themeLogoId);
     }
 }

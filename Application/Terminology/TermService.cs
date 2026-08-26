@@ -1,5 +1,6 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
 using SAMACDX.ThemeManager.Persistence.Entities.Theme;
+using SAMACDX.ThemeManager.Persistence.Extensions;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
@@ -7,16 +8,16 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
     internal class TermService : ITermService
     {
         private const string CacheKey = "TermService_AllTerms";
-        private static readonly MemoryCacheEntryOptions CacheOptions = new MemoryCacheEntryOptions()
-            .SetSlidingExpiration(TimeSpan.FromMinutes(30));
 
         private readonly IThemeTermService _themeTermService;
         private readonly IMemoryCache _cache;
+        private readonly ThemeManagerPersistenceOptions _options;
 
-        public TermService(IThemeTermService themeTermService, IMemoryCache cache)
+        public TermService(IThemeTermService themeTermService, IMemoryCache cache, ThemeManagerPersistenceOptions options)
         {
             _themeTermService = themeTermService;
             _cache = cache;
+            _options = options;
         }
 
         public async Task<string> GetAsync(string key)
@@ -98,7 +99,7 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
 
             var dict = allTerms.GroupBy(t => t.Key).ToDictionary(g => g.Key, g => g.First());
 
-            _cache.Set(CacheKey, dict, CacheOptions);
+            _cache.Set(CacheKey, dict, new MemoryCacheEntryOptions().SetSlidingExpiration(_options.TermCacheDuration));
 
             return dict;
         }

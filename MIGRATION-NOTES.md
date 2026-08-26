@@ -1,4 +1,4 @@
-# SAMACDX.MudBlazor.ThemeManager.Persistence — notas de migración
+﻿# SAMACDX.MudBlazor.ThemeManager.Persistence — notas de migración
 
 Extracción 1:1 del módulo de Theme/Branding de GDIP
 (`C:\laragon\www\Work\GDIP\Components\Features\Theme` y sus contrapartes en
@@ -935,3 +935,125 @@ cada archivo movido/editado y por búsqueda de texto en toda la solución
 que no quedó ninguna referencia rota a los namespaces/rutas anteriores.
 Pendiente de que el usuario compile localmente (librería + `samples/TestHost`)
 y confirme.
+
+
+---
+
+## Etapa: implementación de correcciones y mejoras (a partir del diagnóstico)
+
+Esta etapa parte del documento de diagnóstico técnico entregado previamente
+(`DIAGNOSTICO-LIBRERIA.md`, 22 puntos agrupados en Críticas/Recomendadas/
+Opcionales/Futuras). El pedido del usuario fue implementar **Críticas +
+Recomendadas + Opcionales (27 puntos, C1-C8, R1-R11, O1-O8)** y omitir por
+ahora el bloque de **Funcionalidades futuras (F1-F6)**.
+
+A diferencia de la etapa anterior (reorden de namespaces, que deliberadamente
+no tocó `samples/TestHost`), esta etapa **sí modifica `samples/TestHost`** en
+3 archivos, porque varios de los cambios de la librería son *breaking
+changes* de interfaz (ver R6 y C5 abajo) y el TestHost debe seguir
+compilando contra ellas:
+
+- `samples/TestHost/Services/LocalFileStorageService.cs`: actualizado a la
+  nueva firma de `IThemeFileStorageService` (recibe `ThemeAssetFileContent`
+  en vez de `IBrowserFile`; se agregó `DeleteFileAsync`).
+- `samples/TestHost/Data/TestDbContext.cs`: se agregó un override de
+  `OnModelCreating` que llama a la nueva
+  `modelBuilder.ApplyThemeManagerPersistenceModel()` (C5).
+- `samples/TestHost/Components/Pages/ThemeCatalogPage.razor` (nuevo): se
+  recreó la ruta `/ThemeCatalog` que antes vivía directamente en el
+  componente de librería `ThemeConfig.razor` (ver R8 abajo).
+
+`samples/TestHost/Program.cs` **no** requiere cambios: el nuevo parámetro de
+`AddThemeManagerPersistence<TContext>(configureOptions = null)` es opcional,
+y el registro existente de `IThemeFileStorageService` sigue compilando
+contra la implementación actualizada de `LocalFileStorageService`.
+
+### Críticas (C1-C8)
+
+| # | Resumen | Qué se hizo |
+|---|---|---|
+| C1 | Fuga de `DbContext` en `GenericRepository.Query()` (variante síncrona, sin `using`) | `GenericRepository<TEntity,TContext>` ahora implementa `IDisposable`; los contextos creados por `Query()` se rastrean en una lista acotada (`MaxTrackedContexts = 8`) — al superar el umbral se libera el más antiguo, y el resto se libera en `Dispose()` (llamado por el contenedor de DI al final del scope). El límite acotado existe porque en Blazor Server el scope "Scoped" dura todo el circuito del usuario (potencialmente horas), no un solo request. |
+| C2 | `ThemeManagerService.ChangeTheme` no esperaba (`await`) el invocador de `OnThemeChanged`, y lanzaba si nadie estaba suscrito | Ahora usa `var handler = OnThemeChanged; if (handler is not null) await handler.Invoke(theme);`. El caller en `ThemePaletteSelector.razor` (`UpdateTheme`) ahora también hace `await` en vez de fire-and-forget. |
+| C3 | `GetCurrentPathAsync()` de favicon/logo resolvía por el primer asset activo de cualquier catálogo, no del catálogo activo | `ThemeAssetOperations.GetCurrentPathAsync()` ahora filtra por `t.ThemeCatalog.IsActive`. |
+| C4 | Sin manejo de errores en componentes Razor (excepciones no capturadas rompían la UI silenciosamente) | Se envolvieron todos los métodos de guardado/activación/carga en `ThemeFaviconAndLogoConfig.razor`, `ThemePaletteSelector.razor` y `ThemeTermConfig.razor` en try/catch/finally, con mensajes vía `ISnackbar` (inyectado nuevo en los 3 componentes). |
+| C5 | Sin `IEntityTypeConfiguration<T>` explícito — dependencia total de convenciones EF Core, sin defensa ante cambios accidentales | Se agregaron 4 configuraciones (`ThemeCatalogConfiguration`, `ThemeAssetConfiguration`, `ThemePresentConfiguration`, `ThemeTermConfiguration`) bajo `DataAccess/Configurations/`, aplicadas vía `ModelBuilderExtensions.ApplyThemeManagerPersistenceModel()`. **Deliberadamente no llaman a `.ToTable(...)`** ni redeclaran el índice único existente, para ser un no-op respecto a lo que ya generaban las convenciones — no hay riesgo de drift de esquema contra la base SQLite existente del usuario. `TestDbContext.OnModelCreating` la invoca. |
+| C6 | Metadatos de empaquetado NuGet ausentes en el `.csproj` (`Version`, `Authors`, `Description`, `PackageId`) | Agregados con valores seguros de inferir. **`RepositoryUrl` y `PackageLicenseExpression` se dejaron sin agregar deliberadamente** — son datos legalmente significativos que no corresponde inventar; pendientes de que el usuario los indique. |
+| C7 | Versiones de `PackageReference` con comodín flotante (`8.*`) | Cambiadas a rangos fijos `[8.0.0,9.0.0)` para evitar romper el build con una versión mayor futura no probada. |
+| C8 | `CreateWithThemePresentAsync` podía dejar un `ThemeCatalog` huérfano (sin su `ThemePresent`) si la segunda escritura fallaba | Se agregó una acción compensatoria: si `_themePresentService.CreateAsync` falla, se hace `RemoveAsync` del `ThemeCatalog` recién creado antes de relanzar la excepción. **No es una transacción real de base de datos** (el diseño genérico de repositorios no expone `TContext` a la capa de servicio) — se documentó explícitamente en el código por qué. |
+
+### Recomendadas (R1-R11)
+
+| # | Resumen | Qué se hizo |
+|---|---|---|
+| R1 | Lógica duplicada entre `ThemeFaviconService`/`ThemeLogoService` | Extraída a `Application/Assets/ThemeAssetOperations.cs` (clase interna parametrizada por `ThemeAssetType`); ambos servicios ahora son wrappers delgados. |
+| R2 | Patrón de "activar exclusivamente uno del grupo" repetido 3 veces | Extraído a `Application/ExclusiveActivationHelper.cs` (`ActivateOnly<T>`), usado en `ThemeCatalogService.ActivateAsync` y `ThemeAssetOperations.ActivateAsync`. |
+| R3 | Registros de DI con `AddScoped` (no reemplazables por el consumidor sin orden implícito) | Todos los registros de `ServiceCollectionExtensions.AddThemeManagerPersistence` cambiados a `TryAddScoped`/`TryAddSingleton`. |
+| R4 | Sin forma de configurar duraciones de caché, carpetas de subida, tamaño máximo, tipos de contenido permitidos | Nuevo `ThemeManagerPersistenceOptions`, configurable vía el parámetro opcional `configureOptions` de `AddThemeManagerPersistence<TContext>`. |
+| R5 | Efectos "fake loading" con `Task.Delay(2000)` en vez de estados reales de carga | Eliminados todos los `Task.Delay(2000)`; los estados `isSaving*`/`isActivating*` ahora reflejan el `await` real. |
+| R6 | `IThemeFileStorageService`/`IThemeFaviconService`/`IThemeLogoService` acoplados a `IBrowserFile` (tipo de Blazor Server) en la capa de aplicación/persistencia | Nuevo tipo `ThemeAssetFileContent` (record con `Stream`, `FileName`, `ContentType`, `Length`) en `Interfaces/Services/`; las interfaces y sus implementaciones ya no referencian `IBrowserFile` — queda confinado a los componentes Razor, que leen el archivo a bytes/stream antes de llamar al servicio. **El diagnóstico original sugería posponer esto a un futuro rediseño de API por ser un cambio disruptivo; se implementó ahora igualmente porque el pedido explícito del usuario fue "todas las correcciones y mejoras"**, lo que obligó a actualizar también `samples/TestHost/Services/LocalFileStorageService.cs` (ver arriba). |
+| R7 | Sin invalidación de caché al activar un catálogo (`GetActiveAsync` podía devolver el catálogo viejo) | `ThemeCatalogService.ActivateAsync` invalida `ActiveCatalogCacheKey` tras actualizar. |
+| R8 | `@page "/ThemeCatalog"` declarado directamente en el componente de librería `ThemeConfig.razor` (fuerza esa ruta exacta en cualquier consumidor) | Se quitó la directiva `@page` de `ThemeConfig.razor` (ahora es un componente puro, embebible en cualquier ruta); se recreó la página en `samples/TestHost/Components/Pages/ThemeCatalogPage.razor` para no romper el TestHost. |
+| R9 | Sin implementación por defecto de `IThemeFileStorageService` — todo consumidor debe escribir la suya desde cero | Nueva `Application/Assets/LocalDiskThemeFileStorageService.cs` (usa `IWebHostEnvironment.WebRootPath`), registrable opcionalmente vía `AddThemeManagerPersistenceLocalFileStorage()`. Requiere `FrameworkReference Include="Microsoft.AspNetCore.App"` (agregado al `.csproj`) porque `IWebHostEnvironment` no está disponible en un `Microsoft.NET.Sdk.Razor` sin él. |
+| R10 | Sin operación de borrado en `IGenericRepository<T>` ni en los servicios de catálogo/términos | `IGenericRepository<TEntity>.RemoveAsync(TEntity)` (y su implementación); `IThemeCatalogService.DeleteAsync(int)` (con guardas: no permite borrar el catálogo base ni el activo); `IThemeTermService.DeleteTermsAsync(int)`; `IThemeFaviconService`/`IThemeLogoService.DeleteAsync(int)` (vía `ThemeAssetOperations`, borra la fila y el archivo físico). |
+| R11 | Documentar el acoplamiento permanente al fork/submódulo `MudBlazor.ThemeManager` | Ver nota abajo. |
+
+**Nota R11 — acoplamiento a `MudBlazor.ThemeManager`:** esta librería depende
+de manera permanente e intencional del fork/submódulo ubicado en
+`External/MudBlazor.ThemeManager` (referenciado vía `ProjectReference` en el
+`.csproj`, excluido del globbing normal de `.cs`/`.razor` de este proyecto).
+No es una dependencia opcional ni reemplazable sin modificar código: los
+componentes de la librería (`ThemePaletteSelector.razor`, entre otros) usan
+tipos de ese fork directamente (`MudThemeManager`, `ThemePreset`,
+`ThemeManagerTheme`). Cualquier consumidor que clone/instale esta librería
+debe traer consigo ese submódulo/carpeta (`git submodule update --init` si se
+formaliza como submódulo git, o copiar la carpeta `External/` tal cual). Esto
+queda pendiente de convertirse en una guía de instalación formal (fuera de
+alcance de esta etapa, ya que las "funcionalidades futuras" del diagnóstico
+quedaron explícitamente excluidas).
+
+### Opcionales (O1-O8)
+
+| # | Resumen | Qué se hizo |
+|---|---|---|
+| O1 | `GetActiveAsync()` sin caché (una consulta a la BD en cada render) | Cacheado vía `IMemoryCache`, duración configurable (`Options.ActiveCatalogCacheDuration`, default 5 min), invalidado en `ActivateAsync`. |
+| O2 | `TermService` con caché de duración fija hardcodeada | Ahora usa `Options.TermCacheDuration` (default 30 min). |
+| O3 | `ThemeTerm.Gender` es `string` libre, sin validación | **No se cambió el tipo de la columna** (el diagnóstico mismo señalaba el riesgo de migración/datos contra la BD SQLite existente del usuario). En su lugar: nuevo `ThemeTermGender` (enum) + `ThemeTermGenderParser.TryParse`, usado solo para *validar* en escritura (`ThemeTermService.Create/Update` lanzan `ThemeValidationException` si el valor no es reconocible) — el dato persistido sigue siendo `string`, sin riesgo de romper filas existentes. |
+| O4 | Sin `GenerateDocumentationFile`/XML docs | Agregado `<GenerateDocumentationFile>true</GenerateDocumentationFile>` + `<NoWarn>$(NoWarn);CS1591</NoWarn>` (no se escribieron docs XML retroactivas en cada miembro público existente — eso sería una tarea aparte de gran volumen; el flag deja el mecanismo listo). |
+| O5 | Rutas de assets por defecto (`ThemeDefaultAssets`) con el nombre del ensamblado hardcodeado como literal | `BasePath` ahora se calcula desde `typeof(ThemeDefaultAssets).Assembly.GetName().Name` en vez de un string literal. |
+| O6 | Sin límite de tamaño de archivo subido en favicon/logo | Validado en `UploadFiles`/`UploadLogoFile` contra `Options.MaxUploadSizeBytes` (default 10 MB) antes de leer el stream. |
+| O7 | Sin validación de nombre duplicado/vacío al crear un `ThemeCatalog` | `CreateWithThemePresentAsync` valida vacío y duplicado, lanzando `ThemeValidationException` (nueva clase, `Application/ThemeValidationException.cs`). |
+| O8 | `Query()` de `IGenericRepository<T>` solo soporta `Include` de un nivel (no `.ThenInclude`) | Nueva sobrecarga `Query(Func<IQueryable<TEntity>, IQueryable<TEntity>> shape)` que permite componer la consulta libremente. Se verificó por resolución de sobrecarga que no genera ambigüedad con los call sites existentes de la sobrecarga original (`Query(params Expression<Func<TEntity,object>>[] includes)`). |
+
+### Funcionalidades futuras (F1-F6): omitidas por pedido explícito del usuario
+
+No se implementó nada del bloque "Funcionalidades futuras" del diagnóstico
+(F1-F6) — el usuario pidió explícitamente omitirlas por el momento.
+
+### Archivos nuevos de esta etapa
+
+- `Application/ThemeValidationException.cs`
+- `Application/ExclusiveActivationHelper.cs`
+- `Application/Assets/ThemeAssetOperations.cs`
+- `Application/Assets/LocalDiskThemeFileStorageService.cs`
+- `Application/Terminology/ThemeTermGender.cs`
+- `Extensions/ThemeManagerPersistenceOptions.cs`
+- `Extensions/ModelBuilderExtensions.cs`
+- `Interfaces/Services/ThemeAssetFileContent.cs`
+- `DataAccess/Configurations/ThemeCatalogConfiguration.cs`
+- `DataAccess/Configurations/ThemeAssetConfiguration.cs`
+- `DataAccess/Configurations/ThemePresentConfiguration.cs`
+- `DataAccess/Configurations/ThemeTermConfiguration.cs`
+- `samples/TestHost/Components/Pages/ThemeCatalogPage.razor`
+
+### Estado del build
+
+Igual que en la etapa anterior: no fue posible compilar en esta sesión (sin
+`dotnet` CLI disponible). Se verificó por lectura completa de cada archivo
+nuevo/reescrito, razonamiento manual de tipos/resolución de sobrecargas, y
+una batería de búsquedas de texto en todo el árbol (sin `IBrowserFile` fuera
+de `Components/`/`samples/`, sin `Task.Delay(2000)` remanente, sin
+`ThemeCatalogId == 1` hardcodeado, sin el typo `fivicon`, firma de
+`SaveFileAsync` consistente en todos los call sites, etc.). **Pendiente de
+que el usuario compile localmente (librería + `samples/TestHost`) y
+confirme** — sigue sin haber forma de verificarlo por compilación real
+dentro de esta sesión.

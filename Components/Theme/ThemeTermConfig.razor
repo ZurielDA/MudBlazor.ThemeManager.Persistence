@@ -1,8 +1,10 @@
 ﻿@using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 @using SAMACDX.ThemeManager.Persistence.Entities.Theme
+@using SAMACDX.ThemeManager.Persistence.Application
 
 @inject IThemeTermService ThemeTermService
 @inject ITermService TermService
+@inject ISnackbar SnackbarService
 
 <MudPaper Class="py-8 my-8" Style="overflow:hidden; position:relative;">
 
@@ -77,7 +79,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        themeTerms = await ThemeTermService.GetAllTermsAsync();
+        try
+        {
+            themeTerms = await ThemeTermService.GetAllTermsAsync();
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo cargar la terminologia.", Severity.Error);
+        }
     }
 
     private Func<ThemeTerm, bool> _quickFilter => x =>
@@ -125,11 +134,27 @@
         _events.Insert(0, $"Event = CanceledEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
     }
 
-    public async void CommittedItemChanges(ThemeTerm item)
+    // Antes era "async void": la excepcion mas grave posible en C# async,
+    // porque queda completamente inobservada (ni siquiera un try/catch
+    // alrededor de la llamada la atrapa). Ahora es "async Task" (el
+    // EventCallback de MudDataGrid admite ambas firmas) con manejo de
+    // errores explicito.
+    public async Task CommittedItemChanges(ThemeTerm item)
     {
         _events.Insert(0, $"Event = CommittedItemChanges, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
 
-        await ThemeTermService.UpdateTermsAsync(item);
-        TermService.InvalidateCache();
+        try
+        {
+            await ThemeTermService.UpdateTermsAsync(item);
+            TermService.InvalidateCache();
+        }
+        catch (ThemeValidationException ex)
+        {
+            SnackbarService.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo guardar el termino. Intenta nuevamente.", Severity.Error);
+        }
     }
 }

@@ -2,47 +2,32 @@
 using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
 using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
 using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
-using Microsoft.AspNetCore.Components.Forms;
+using SAMACDX.ThemeManager.Persistence.Extensions;
 
 namespace SAMACDX.ThemeManager.Persistence.Application.Assets
 {
     public class ThemeFaviconService : IThemeFaviconService
     {
-        private readonly IThemeFileStorageService _fileStorageService;
-        private readonly IThemeAssetRepository _themeAssetRepository;
+        private readonly ThemeAssetOperations _operations;
 
-        public ThemeFaviconService(IThemeFileStorageService fileStorageService, IThemeAssetRepository themeAssetRepository)
-        { 
-            _fileStorageService = fileStorageService;
-            _themeAssetRepository = themeAssetRepository;
-        }
-
-        public async Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id)
+        public ThemeFaviconService(IThemeFileStorageService fileStorageService, IThemeAssetRepository themeAssetRepository, ThemeManagerPersistenceOptions options)
         {
-            var favicons = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == id && t.Type == ThemeAssetType.Favicon);
-
-            return favicons.ToList();
+            _operations = new ThemeAssetOperations(
+                themeAssetRepository,
+                fileStorageService,
+                ThemeAssetType.Favicon,
+                options.FaviconUploadFolder,
+                options.AllowedAssetContentTypes);
         }
 
-        public async Task<ThemeAsset> CreateAsync(ThemeAsset themeFavicon, IBrowserFile file)
-        {
-            string path = await _fileStorageService.SaveFileAsync(file, "Uploads/icons");
+        public Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id) => _operations.GetAllByThemeCatalogIdAsync(id);
 
-            themeFavicon.Path = path;
-            themeFavicon.Type = ThemeAssetType.Favicon;
+        public Task<ThemeAsset> CreateAsync(ThemeAsset themeFavicon, ThemeAssetFileContent file) => _operations.CreateAsync(themeFavicon, file);
 
-            return  await _themeAssetRepository.AddAsync(themeFavicon);
-        }
+        public Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeFaviconId) => _operations.ActivateAsync(themeCatalogId, themeFaviconId);
 
-        public async Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeFaviconId)
-        {
-            var favicons = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == themeCatalogId && t.Type == ThemeAssetType.Favicon);
+        public Task<string> GetCurrentFaviconPathAsync() => _operations.GetCurrentPathAsync();
 
-            favicons.ToList().ForEach(t => t.IsActive = t.Id == themeFaviconId);
-
-            await _themeAssetRepository.UpdateRangeAsync(favicons);
-
-            return favicons.ToList();
-        }
+        public Task DeleteAsync(int themeFaviconId) => _operations.DeleteAsync(themeFaviconId);
     }
 }

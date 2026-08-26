@@ -15,6 +15,24 @@
 		<AssemblyName>SAMACDX.MudBlazor.ThemeManager.Persistence</AssemblyName>
 	</PropertyGroup>
 
+	<!-- Metadatos de empaquetado NuGet. Version/Authors/Description/PackageId son
+	     seguros de fijar ahora (no dependen de una decision que solo el autor
+	     del repositorio pueda tomar). RepositoryUrl y PackageLicenseExpression
+	     se dejan sin definir deliberadamente: requieren una decision explicita
+	     del propietario del repositorio (licencia real, URL real) que esta
+	     etapa no puede asumir por su cuenta. -->
+	<PropertyGroup>
+		<Version>0.1.0</Version>
+		<Authors>SAMACDX</Authors>
+		<Description>Modulo reutilizable de gestion de Theme/Branding (catalogos de tema, paleta visual, favicon/logo, terminologia) para aplicaciones Blazor con MudBlazor.</Description>
+		<PackageId>SAMACDX.MudBlazor.ThemeManager.Persistence</PackageId>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<!-- Varios miembros publicos (sobre todo los heredados 1:1 de GDIP) aun no
+		     tienen comentario XML propio; no se trata cada uno como error de build
+		     solo por habilitar la generacion del archivo de documentacion. -->
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+	</PropertyGroup>
+
 	<!-- External\MudBlazor.ThemeManager and samples\TestHost are each their own project
 	     (referenced via ProjectReference below, or standalone). Without excluding them
 	     here, the default SDK globbing of THIS project would ALSO compile their .razor/.cs
@@ -36,12 +54,25 @@
 		<None Remove="samples\**" />
 	</ItemGroup>
 
+	<!-- Framework reference explicita a ASP.NET Core: esta libreria es un Razor
+	     Class Library (Sdk.Razor), que por defecto NO trae acceso a tipos de
+	     hosting como IWebHostEnvironment. Se agrega aqui unicamente para la
+	     implementacion OPCIONAL de almacenamiento en disco
+	     (Application/Assets/LocalDiskThemeFileStorageService.cs); es un
+	     patron estandar y soportado para RCLs que necesitan abstracciones de
+	     hosting de ASP.NET Core (el mismo mecanismo que usan, por ejemplo, las
+	     paginas de Identity UI de Microsoft). No cambia el TargetFramework ni
+	     requiere que el consumidor use Sdk.Web para el resto de la libreria. -->
 	<ItemGroup>
-		<PackageReference Include="MudBlazor" Version="8.*" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.*" />
-		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.*" />
-		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.*" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.*" />
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MudBlazor" Version="[8.0.0,9.0.0)" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="[9.0.0,10.0.0)" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="[9.0.0,10.0.0)" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="[9.0.0,10.0.0)" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[9.0.0,10.0.0)" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -1,4 +1,5 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
+using SAMACDX.ThemeManager.Persistence.Interfaces.Services;
 using SAMACDX.ThemeManager.Persistence.DataAccess;
 using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
 using SAMACDX.ThemeManager.Persistence.Application;
@@ -7,28 +8,46 @@ using SAMACDX.ThemeManager.Persistence.Application.Terminology;
 using SAMACDX.ThemeManager.Persistence.ThemeManagerIntegration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace SAMACDX.ThemeManager.Persistence.Extensions
 {
     /// <summary>
-    /// Punto de entrada para registrar este módulo (Theme/Branding) en la aplicación
+    /// Punto de entrada para registrar este modulo (Theme/Branding) en la aplicacion
     /// consumidora.
     ///
-    /// La aplicación consumidora debe:
+    /// La aplicacion consumidora debe:
     ///   1. Llamar a services.AddThemeManagerPersistence&lt;TContext&gt;() indicando su
     ///      propio DbContext (TContext), que debe exponer DbSet&lt;T&gt; (vía Set&lt;T&gt;())
     ///      para ThemeCatalog, ThemeAsset, ThemePresent y ThemeTerm
-    ///      (Entities/ThemeCatalog/* y Entities/Theme/ThemeTerm).
-    ///   2. Registrar su propia implementación de IThemeFileStorageService (típicamente
-    ///      agregando esa interfaz a su servicio de almacenamiento de archivos existente).
+    ///      (Entities/ThemeCatalog/* y Entities/Theme/ThemeTerm). Ver tambien
+    ///      ModelBuilderExtensions.ApplyThemeManagerPersistenceModel() para
+    ///      aplicar el modelo EF Core de estas 4 entidades explicitamente
+    ///      desde el OnModelCreating de ese DbContext.
+    ///   2. Registrar su propia implementacion de IThemeFileStorageService (tipicamente
+    ///      agregando esa interfaz a su servicio de almacenamiento de archivos existente),
+    ///      o usar la implementacion opcional que trae la libreria via
+    ///      AddThemeManagerPersistenceLocalFileStorage() (requiere IWebHostEnvironment,
+    ///      es decir, un host Microsoft.NET.Sdk.Web).
     ///   3. Registrar IDbContextFactory&lt;TContext&gt; (o un TContext externo) como ya
     ///      hace normalmente para EF Core.
+    ///
+    /// Todos los registros usan TryAdd*, asi que un consumidor puede
+    /// reemplazar cualquier pieza (por ejemplo, su propio ITermService)
+    /// registrandola ANTES o DESPUES de llamar a este metodo, sin depender de
+    /// un orden implicito.
     /// </summary>
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddThemeManagerPersistence<TContext>(this IServiceCollection services)
+        public static IServiceCollection AddThemeManagerPersistence<TContext>(
+            this IServiceCollection services,
+            Action<ThemeManagerPersistenceOptions>? configureOptions = null)
             where TContext : DbContext
         {
+            var options = new ThemeManagerPersistenceOptions();
+            configureOptions?.Invoke(options);
+            services.AddSingleton(options);
+
             services.AddMemoryCache();
 
             // Cada repositorio (Theme*Repository<TContext>) tiene dos constructores:
@@ -41,30 +60,46 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
             // también deja TContext resolvible como scoped). Por eso aquí se resuelve
             // explícitamente: se prefiere la factory cuando está registrada, y si no, se
             // cae al TContext externo.
-            services.AddScoped<IThemeCatalogRepository>(sp =>
+            services.TryAddScoped<IThemeCatalogRepository>(sp =>
                 CreateRepository<ThemeCatalogRepository<TContext>, TContext>(sp,
                     f => new ThemeCatalogRepository<TContext>(f),
                     c => new ThemeCatalogRepository<TContext>(c)));
-            services.AddScoped<IThemeAssetRepository>(sp =>
+            services.TryAddScoped<IThemeAssetRepository>(sp =>
                 CreateRepository<ThemeAssetRepository<TContext>, TContext>(sp,
                     f => new ThemeAssetRepository<TContext>(f),
                     c => new ThemeAssetRepository<TContext>(c)));
-            services.AddScoped<IThemePresentRepository>(sp =>
+            services.TryAddScoped<IThemePresentRepository>(sp =>
                 CreateRepository<ThemePresentRepository<TContext>, TContext>(sp,
                     f => new ThemePresentRepository<TContext>(f),
                     c => new ThemePresentRepository<TContext>(c)));
-            services.AddScoped<IThemeTermRepository>(sp =>
+            services.TryAddScoped<IThemeTermRepository>(sp =>
                 CreateRepository<ThemeTermRepository<TContext>, TContext>(sp,
                     f => new ThemeTermRepository<TContext>(f),
                     c => new ThemeTermRepository<TContext>(c)));
 
-            services.AddScoped<IThemeManagerService, ThemeManagerService>();
-            services.AddScoped<IThemeCatalogService, ThemeCatalogService>();
-            services.AddScoped<IThemePresentService, ThemePresentService>();
-            services.AddScoped<IThemeTermService, ThemeTermService>();
-            services.AddScoped<IThemeFaviconService, ThemeFaviconService>();
-            services.AddScoped<IThemeLogoService, ThemeLogoService>();
-            services.AddScoped<ITermService, TermService>();
+            services.TryAddScoped<IThemeManagerService, ThemeManagerService>();
+            services.TryAddScoped<IThemeCatalogService, ThemeCatalogService>();
+            services.TryAddScoped<IThemePresentService, ThemePresentService>();
+            services.TryAddScoped<IThemeTermService, ThemeTermService>();
+            services.TryAddScoped<IThemeFaviconService, ThemeFaviconService>();
+            services.TryAddScoped<IThemeLogoService, ThemeLogoService>();
+            services.TryAddScoped<ITermService, TermService>();
+
+            return services;
+        }
+
+        /// <summary>
+        /// Registra una implementacion opcional de IThemeFileStorageService
+        /// que guarda archivos en disco bajo IWebHostEnvironment.WebRootPath.
+        /// No se activa automaticamente al llamar a
+        /// AddThemeManagerPersistence&lt;TContext&gt;() -- es un metodo aparte para
+        /// que el consumidor la elija explicitamente si le sirve, en vez de
+        /// forzarla sobre quien prefiera su propio backend de almacenamiento.
+        /// Requiere un host que exponga IWebHostEnvironment (Microsoft.NET.Sdk.Web).
+        /// </summary>
+        public static IServiceCollection AddThemeManagerPersistenceLocalFileStorage(this IServiceCollection services)
+        {
+            services.TryAddScoped<IThemeFileStorageService, LocalDiskThemeFileStorageService>();
 
             return services;
         }

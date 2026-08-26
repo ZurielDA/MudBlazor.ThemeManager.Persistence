@@ -1,42 +1,33 @@
 ﻿using SAMACDX.ThemeManager.Persistence.Interfaces.Services;
+using Microsoft.AspNetCore.Hosting;
 
-namespace SAMACDX.ThemeManager.Persistence.TestHost.Services
+namespace SAMACDX.ThemeManager.Persistence.Application.Assets
 {
     /// <summary>
-    /// Implementacion minima de IThemeFileStorageService para el test host,
-    /// calcada de GDIP.Infrastructure.Services.FileStorageService.SaveFileAsync
-    /// (la unica pieza que el modulo Theme realmente necesita de esa clase).
-    ///
-    /// Nota: la libreria ahora trae, de forma OPCIONAL, una implementacion
-    /// equivalente lista para usar
-    /// (Application/Assets/LocalDiskThemeFileStorageService.cs, registrable
-    /// via services.AddThemeManagerPersistenceLocalFileStorage()). Este
-    /// archivo se mantiene igual (implementacion propia del sample host) en
-    /// vez de reemplazarlo por la de la libreria, para no cambiar el
-    /// comportamiento de samples/TestHost mas alla de lo que exige el nuevo
-    /// contrato de IThemeFileStorageService (ver ThemeAssetFileContent).
+    /// Implementacion de IThemeFileStorageService que guarda archivos en
+    /// disco, bajo IWebHostEnvironment.WebRootPath (wwwroot) de la app
+    /// consumidora. Opcional: se registra explicitamente via
+    /// services.AddThemeManagerPersistenceLocalFileStorage() -- no se activa
+    /// por defecto al llamar a AddThemeManagerPersistence&lt;TContext&gt;(), para
+    /// no imponerla a un consumidor que prefiera su propio backend de
+    /// almacenamiento (blob storage, S3, etc.). Equivalente, casi al detalle,
+    /// a la implementacion que cada consumidor (incluido samples/TestHost)
+    /// tenia que escribir por su cuenta antes de esta etapa.
     /// </summary>
-    public class LocalFileStorageService : IThemeFileStorageService
+    public class LocalDiskThemeFileStorageService : IThemeFileStorageService
     {
         private readonly IWebHostEnvironment _environment;
 
-        public LocalFileStorageService(IWebHostEnvironment environment)
+        public LocalDiskThemeFileStorageService(IWebHostEnvironment environment)
         {
             _environment = environment;
         }
 
         public async Task<string> SaveFileAsync(ThemeAssetFileContent file, string folder)
         {
-            if (file == null)
+            if (file is null)
             {
                 throw new ArgumentNullException(nameof(file));
-            }
-
-            const long maxFileSize = 5 * 1024 * 1024; // 5 MB
-
-            if (file.Length > maxFileSize)
-            {
-                throw new ArgumentException($"El archivo excede el tamaño maximo permitido ({maxFileSize / 1024 / 1024} MB).");
             }
 
             var path = Path.Combine(_environment.WebRootPath, folder);
