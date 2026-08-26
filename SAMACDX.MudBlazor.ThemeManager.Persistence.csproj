@@ -67,12 +67,20 @@
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
 
+	<!-- Microsoft.AspNetCore.Components.Web y Microsoft.Extensions.DependencyInjection.Abstractions
+	     tienen el piso de su rango en 9.0.1 (no 9.0.0): MudBlazor 8.0.0 exige
+	     transitivamente Components.Web >= 9.0.1 y, via Microsoft.Extensions.Localization
+	     9.0.1, DependencyInjection.Abstractions >= 9.0.1. Un rango con piso 9.0.0 hace que
+	     NuGet resuelva esta referencia DIRECTA a 9.0.0, lo cual es un downgrade respecto a
+	     lo que el grafo transitivo ya exige (9.0.1) y falla el restore con NU1605
+	     ("Warning As Error: Detected package downgrade"). El piso 9.0.1 aqui no es
+	     arbitrario: es exactamente el minimo que el propio error de NU1605 senala. -->
 	<ItemGroup>
 		<PackageReference Include="MudBlazor" Version="[8.0.0,9.0.0)" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="[9.0.0,10.0.0)" />
-		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="[9.0.0,10.0.0)" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="[9.0.1,10.0.0)" />
 		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="[9.0.0,10.0.0)" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[9.0.0,10.0.0)" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[9.0.1,10.0.0)" />
 	</ItemGroup>
 
 	<ItemGroup>

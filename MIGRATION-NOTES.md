@@ -1057,3 +1057,46 @@ de `Components/`/`samples/`, sin `Task.Delay(2000)` remanente, sin
 que el usuario compile localmente (librería + `samples/TestHost`) y
 confirme** — sigue sin haber forma de verificarlo por compilación real
 dentro de esta sesión.
+
+
+---
+
+## Corrección post-implementación: NU1605 (downgrade de paquete) en `dotnet restore`
+
+Al compilar localmente la etapa anterior ("implementación de correcciones y
+mejoras"), `dotnet restore` falló con:
+
+```
+error NU1605: Warning As Error: Detected package downgrade:
+  Microsoft.AspNetCore.Components.Web from 9.0.1 to 9.0.0
+error NU1605: Warning As Error: Detected package downgrade:
+  Microsoft.Extensions.DependencyInjection.Abstractions from 9.0.1 to 9.0.0
+```
+
+**Causa**: C7 (fijar rangos de versión en vez de comodines flotantes `8.*`/
+`9.*`) fijó el piso de `Microsoft.AspNetCore.Components.Web` y de
+`Microsoft.Extensions.DependencyInjection.Abstractions` en `9.0.0`. Pero
+`MudBlazor 8.0.0` exige transitivamente `Components.Web >= 9.0.1`, y (vía
+`Microsoft.Extensions.Localization 9.0.1`) `DependencyInjection.Abstractions
+>= 9.0.1`. Al declarar la referencia DIRECTA con un piso de `9.0.0`, NuGet
+resuelve esa referencia a `9.0.0` — más baja que lo que el propio grafo
+transitivo ya exige (`9.0.1`) — y eso es exactamente lo que `NU1605`
+detecta como "downgrade".
+
+**Fix**: se subió el piso de esas dos referencias a `[9.0.1,10.0.0)` (antes
+`[9.0.0,10.0.0)`). El valor `9.0.1` no es arbitrario: es el mínimo exacto
+que el propio mensaje de error de NuGet señala como requerido. El resto de
+paquetes (`MudBlazor`, `Microsoft.EntityFrameworkCore`,
+`Microsoft.Extensions.Caching.Memory`) no se tocaron — el error no los
+mencionó, así que sus pisos actuales ya son compatibles con el grafo
+transitivo.
+
+**Nota**: `samples/TestHost/*.csproj` sigue con
+`Microsoft.EntityFrameworkCore.Sqlite` en comodín flotante (`9.*`, sin
+tocar, fuera de alcance de C7 según lo documentado en esa etapa). Si al
+compilar el TestHost aparece un NU1605 similar (por ejemplo si `9.*`
+resuelve una versión de `EntityFrameworkCore.Sqlite` que exige una versión
+de `Microsoft.EntityFrameworkCore` más alta que el piso `9.0.0` fijado en
+la librería), avisar para revisarlo — no se modificó preventivamente sin
+evidencia de un error real, siguiendo la práctica de no tocar
+`samples/TestHost` salvo necesidad concreta.
