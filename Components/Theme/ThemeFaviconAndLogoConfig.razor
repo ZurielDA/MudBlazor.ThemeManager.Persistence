@@ -172,7 +172,7 @@
      * Sección de favicon
      */
     
-    private List<ThemeFavicon> _themeFavicons = new List<ThemeFavicon>();
+    private List<ThemeAsset> _themeFavicons = new List<ThemeAsset>();
 
     private IBrowserFile _faviconFile = null;
 
@@ -197,7 +197,7 @@
 
             if (_themeFavicons.Count() > 0)
             {
-                ThemeFavicon themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
+                ThemeAsset themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
 
                 if(themeFaviconTemp != null)
                 {
@@ -233,7 +233,7 @@
     {
         _isSavingThemeFavicon = true;
 
-        ThemeFavicon newThemeFavicon = await ThemeFaviconService.CreateAsync(new ThemeFavicon
+        ThemeAsset newThemeFavicon = await ThemeFaviconService.CreateAsync(new ThemeAsset
         {
             ThemeCatalogId = SelectThemeCatalog.Id,
             Name = _faviconFile.Name
@@ -326,7 +326,7 @@
      * Sección de Logotipo
      */
 
-    private List<ThemeLogo> _themeLogos = new List<ThemeLogo>();
+    private List<ThemeAsset> _themeLogos = new List<ThemeAsset>();
 
     private IBrowserFile _logoFile = null;
 
@@ -345,7 +345,7 @@
 
             if (_themeLogos.Count() > 0)
             {
-                ThemeLogo themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive)!;
+                ThemeAsset themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive)!;
 
                 if (themeLogoTemp != null)
                 {
@@ -380,7 +380,7 @@
     {
         _isSavingThemeLogo = true;
 
-        ThemeLogo newThemeLogo = await ThemeLogoService.CreateAsync(new ThemeLogo
+        ThemeAsset newThemeLogo = await ThemeLogoService.CreateAsync(new ThemeAsset
         {
             ThemeCatalogId = SelectThemeCatalog.Id,
             Name = _logoFile.Name

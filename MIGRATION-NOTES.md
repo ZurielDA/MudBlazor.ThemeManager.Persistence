@@ -486,3 +486,113 @@ en toda la solución (librería + `samples/TestHost`) que no quedó ninguna
 referencia rota a `AuditableEntity`, a los seeders eliminados, ni a los
 métodos removidos de `GenericRepository`/`IGenericRepository`. Pendiente
 de que el usuario compile localmente y confirme.
+
+## Etapa: consolidación de `ThemeLogo`/`ThemeFavicon` en `ThemeAsset` (2026-08-26)
+
+Refactor completo para unificar las entidades `ThemeLogo` y `ThemeFavicon`
+(que eran clases casi idénticas: `Id`, `Name`, `Path`, `IsActive`,
+`ThemeCatalogId`, `ThemeCatalog`) en una única entidad reutilizable
+`ThemeAsset`, con un nuevo enum `ThemeAssetType` (`Logo`, `Favicon`) para
+discriminar el tipo — sin usar strings libres.
+
+### Entidades
+
+- `Entities/ThemeCatalog/ThemeFavicon.cs` y `ThemeLogo.cs` **eliminadas**.
+- `Entities/ThemeCatalog/ThemeAsset.cs` **nueva**: mismas propiedades que
+  las entidades eliminadas más `public ThemeAssetType Type { get; set; }`.
+- `Entities/ThemeCatalog/ThemeAssetType.cs` **nuevo** enum: `Logo`,
+  `Favicon`.
+- `ThemeCatalog.ThemeFavicons` + `ThemeCatalog.ThemeLogos` (dos
+  `ICollection`) colapsados en una única `ICollection<ThemeAsset>
+  ThemeAssets`.
+
+### Repositorios
+
+`IThemeFaviconRepository`/`ThemeFaviconRepository<TContext>` y
+`IThemeLogoRepository`/`ThemeLogoRepository<TContext>` **eliminados**;
+reemplazados por un único `IThemeAssetRepository`/
+`ThemeAssetRepository<TContext>` (mismo patrón de doble constructor
+`IDbContextFactory<TContext>` / `TContext` externo que ya usaban los
+demás repositorios). `ServiceCollectionExtensions` registra ahora sólo
+`IThemeAssetRepository` en vez de los dos anteriores.
+
+### Servicios
+
+Se conservaron `IThemeFaviconService`/`ThemeFaviconService` e
+`IThemeLogoService`/`ThemeLogoService` como dos interfaces/clases
+separadas (decisión explícita del pedido: los consumidores de alto nivel
+no deben verse forzados a conocer `ThemeAssetType`), pero:
+
+- Sus firmas ahora usan `ThemeAsset` en vez de `ThemeFavicon`/`ThemeLogo`.
+- Ambas dependen internamente del mismo `IThemeAssetRepository` (antes
+  cada una tenía su propio repositorio dedicado).
+- Cada consulta (`GetAllByThemeCatalogIdAsync`, `ActivateAsync`,
+  `GetCurrentLogoPathAsync`) agrega el filtro `t.Type ==
+  ThemeAssetType.Favicon` / `.Logo` que antes era implícito (estaba dado
+  por consultar una tabla separada).
+- `CreateAsync` asigna `Type` internamente antes de persistir
+  (`ThemeAssetType.Favicon` en `ThemeFaviconService`, `.Logo` en
+  `ThemeLogoService`), de modo que ni los componentes Razor ni ningún
+  otro consumidor necesitan tocar el enum.
+- No se fusionaron ambas clases en una sola implementación genérica: eso
+  habría introducido una arquitectura distinta a la existente, algo que
+  el pedido excluyó explícitamente. La reutilización interna pedida
+  ("evalúa si pueden reutilizar una única implementación basada en
+  ThemeAssetType") se resolvió al nivel del repositorio, que es lo que
+  antes estaba duplicado 1:1.
+- `ThemeCatalogService.GetActiveAsync()` actualizado: ahora incluye
+  `t.ThemeAssets` (antes `t.ThemeFavicons` + `t.ThemeLogos`) y filtra la
+  colección resultante a `IsActive` de la misma forma que antes, sólo que
+  sobre una única colección.
+- La regla de activación no cambió de arquitectura (tal como se pidió):
+  sigue siendo "activar el elegido, desactivar el resto del mismo grupo
+  vía `ActivateAsync`", ahora con el grupo acotado por `ThemeCatalogId`
+  + `Type` en vez de por tabla separada.
+
+### UI / componentes
+
+`Components/Theme/ThemeFaviconAndLogoConfig.razor`: se actualizaron sólo
+las referencias de TIPO (`List<ThemeFavicon>` → `List<ThemeAsset>`,
+`new ThemeFavicon { ... }` → `new ThemeAsset { ... }`, ídem para
+`ThemeLogo`). Los nombres de campos/métodos/variables (`_themeFavicons`,
+`_themeLogos`, `SaveFaviconAsync`, `_isActivatingThemeLogo`, etc.) se
+dejaron intactos porque siguen describiendo correctamente su propósito y
+renombrarlos no fue parte del pedido. No hubo cambios de markup/CSS/UX:
+el usuario sigue pudiendo seleccionar/ver/activar logo y favicon por
+separado, exactamente igual que antes.
+
+`samples/TestHost/Data/TestDbContext.cs`: `DbSet<ThemeFavicon>
+ThemeFavicons` + `DbSet<ThemeLogo> ThemeLogos` reemplazados por
+`DbSet<ThemeAsset> ThemeAssets`.
+
+`samples/TestHost/Components/Pages/Home.razor`: las dos líneas que leían
+`_activeCatalog.ThemeFavicons`/`ThemeLogos` ahora filtran
+`_activeCatalog.ThemeAssets` por `Type == ThemeAssetType.Favicon`/`.Logo`
+(además de `IsActive`, igual que antes).
+
+### Limpieza posterior
+
+Se rebuscó toda la solución (librería + `samples/TestHost`, excluyendo
+`bin`/`obj`/`.git`/`External`) por `ThemeFavicon`/`ThemeLogo`: las únicas
+coincidencias restantes son el nombre del componente
+`ThemeFaviconAndLogoConfig` (no forma parte del pedido, es el nombre del
+componente UI, no de una entidad) y nombres de interfaces/servicios/
+campos/métodos que se decidió explícitamente conservar
+(`IThemeFaviconService`, `IThemeLogoService`, `_isSavingThemeFavicon`,
+etc.). No quedó ninguna clase de compatibilidad, alias ni wrapper para
+las entidades eliminadas. No existían `IEntityTypeConfiguration<T>` (el
+modelado es 100% por convención, confirmado en la etapa de limpieza
+anterior), DTOs separados para logo/favicon, ni migraciones EF Core
+(el esquema SQLite de `samples/TestHost` se crea con
+`EnsureCreatedAsync()`), así que no hubo nada que ajustar en esas capas.
+Ningún seeder referenciaba estas entidades (los seeders de Theme ya
+habían sido eliminados en la etapa de limpieza anterior).
+
+### Estado del build
+
+No fue posible compilar en esta sesión (sin `dotnet` CLI disponible, como
+en toda la migración) — se verificó exhaustivamente por búsqueda de texto
+en toda la solución que no quedó ninguna referencia rota a
+`ThemeFavicon`/`ThemeLogo`/`IThemeFaviconRepository`/
+`IThemeLogoRepository`/`ThemeFaviconRepository`/`ThemeLogoRepository`.
+Pendiente de que el usuario compile localmente y confirme.

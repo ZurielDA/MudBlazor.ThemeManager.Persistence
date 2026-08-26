@@ -15,8 +15,6 @@ namespace SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
 
         public ThemePresent ThemePresent { get; set; }
 
-        public ICollection<ThemeFavicon> ThemeFavicons { get; set; }
-
-        public ICollection<ThemeLogo> ThemeLogos { get; set; }
+        public ICollection<ThemeAsset> ThemeAssets { get; set; }
     }
 }

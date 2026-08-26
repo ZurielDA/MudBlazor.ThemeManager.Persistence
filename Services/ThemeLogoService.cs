@@ -9,44 +9,45 @@ namespace SAMACDX.ThemeManager.Persistence.Services
     public class ThemeLogoService : IThemeLogoService
     {
         private readonly IThemeFileStorageService _fileStorageService;
-        private readonly IThemeLogoRepository _themeLogoRepository;
+        private readonly IThemeAssetRepository _themeAssetRepository;
 
-        public ThemeLogoService(IThemeFileStorageService fileStorageService, IThemeLogoRepository themeLogoRepository)
+        public ThemeLogoService(IThemeFileStorageService fileStorageService, IThemeAssetRepository themeAssetRepository)
         {
             _fileStorageService = fileStorageService;
-            _themeLogoRepository = themeLogoRepository;
+            _themeAssetRepository = themeAssetRepository;
         }
 
-        public async Task<List<ThemeLogo>> GetAllByThemeCatalogIdAsync(int id)
+        public async Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id)
         {
-            var result = await _themeLogoRepository.FindAsync(t => t.ThemeCatalogId == id);
+            var result = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == id && t.Type == ThemeAssetType.Logo);
 
             return result.ToList();
         }
 
-        public async Task<ThemeLogo> CreateAsync(ThemeLogo themeLogo, IBrowserFile file)
+        public async Task<ThemeAsset> CreateAsync(ThemeAsset themeLogo, IBrowserFile file)
         {
             string path = await _fileStorageService.SaveFileAsync(file, "Uploads/logos");
 
             themeLogo.Path = path;
+            themeLogo.Type = ThemeAssetType.Logo;
 
-            return await _themeLogoRepository.AddAsync(themeLogo);
+            return await _themeAssetRepository.AddAsync(themeLogo);
         }
 
-        public async Task<List<ThemeLogo>> ActivateAsync(int themeCatalogId, int themeLogoId)
+        public async Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeLogoId)
         {
-            var logos = await _themeLogoRepository.FindAsync(t => t.ThemeCatalogId == themeCatalogId);
+            var logos = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == themeCatalogId && t.Type == ThemeAssetType.Logo);
 
             logos.ToList().ForEach(t => t.IsActive = t.Id == themeLogoId);
 
-            await _themeLogoRepository.UpdateRangeAsync(logos);
+            await _themeAssetRepository.UpdateRangeAsync(logos);
 
             return logos.ToList();
         }
 
         public async Task<string> GetCurrentLogoPathAsync()
         {
-            var logos = await _themeLogoRepository.FindAsync(t => t.ThemeCatalogId == 1);
+            var logos = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == 1 && t.Type == ThemeAssetType.Logo);
 
             var activeLogo = logos.FirstOrDefault(l => l.IsActive);
 

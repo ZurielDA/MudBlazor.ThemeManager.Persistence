@@ -17,9 +17,7 @@ namespace SAMACDX.ThemeManager.Persistence.TestHost.Data
 
         public DbSet<ThemeCatalog> ThemeCatalogs => Set<ThemeCatalog>();
 
-        public DbSet<ThemeFavicon> ThemeFavicons => Set<ThemeFavicon>();
-
-        public DbSet<ThemeLogo> ThemeLogos => Set<ThemeLogo>();
+        public DbSet<ThemeAsset> ThemeAssets => Set<ThemeAsset>();
 
         public DbSet<ThemePresent> ThemesPresent => Set<ThemePresent>();
 

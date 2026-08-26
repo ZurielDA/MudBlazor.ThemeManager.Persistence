@@ -4,15 +4,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SAMACDX.ThemeManager.Persistence.Repositories.Theme
 {
-    public class ThemeFaviconRepository<TContext> : GenericRepository<ThemeFavicon, TContext>, IThemeFaviconRepository
+    public class ThemeAssetRepository<TContext> : GenericRepository<ThemeAsset, TContext>, IThemeAssetRepository
         where TContext : DbContext
     {
-        public ThemeFaviconRepository(IDbContextFactory<TContext> contextFactory)
+        public ThemeAssetRepository(IDbContextFactory<TContext> contextFactory)
             : base(contextFactory)
         {
         }
 
-        public ThemeFaviconRepository(TContext externalContext)
+        public ThemeAssetRepository(TContext externalContext)
             : base(externalContext)
         {
         }

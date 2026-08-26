@@ -15,7 +15,7 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
     /// La aplicación consumidora debe:
     ///   1. Llamar a services.AddThemeManagerPersistence&lt;TContext&gt;() indicando su
     ///      propio DbContext (TContext), que debe exponer DbSet&lt;T&gt; (vía Set&lt;T&gt;())
-    ///      para ThemeCatalog, ThemeFavicon, ThemeLogo, ThemePresent y ThemeTerm
+    ///      para ThemeCatalog, ThemeAsset, ThemePresent y ThemeTerm
     ///      (Entities/ThemeCatalog/* y Entities/Theme/ThemeTerm).
     ///   2. Registrar su propia implementación de IThemeFileStorageService (típicamente
     ///      agregando esa interfaz a su servicio de almacenamiento de archivos existente).
@@ -43,14 +43,10 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
                 CreateRepository<ThemeCatalogRepository<TContext>, TContext>(sp,
                     f => new ThemeCatalogRepository<TContext>(f),
                     c => new ThemeCatalogRepository<TContext>(c)));
-            services.AddScoped<IThemeFaviconRepository>(sp =>
-                CreateRepository<ThemeFaviconRepository<TContext>, TContext>(sp,
-                    f => new ThemeFaviconRepository<TContext>(f),
-                    c => new ThemeFaviconRepository<TContext>(c)));
-            services.AddScoped<IThemeLogoRepository>(sp =>
-                CreateRepository<ThemeLogoRepository<TContext>, TContext>(sp,
-                    f => new ThemeLogoRepository<TContext>(f),
-                    c => new ThemeLogoRepository<TContext>(c)));
+            services.AddScoped<IThemeAssetRepository>(sp =>
+                CreateRepository<ThemeAssetRepository<TContext>, TContext>(sp,
+                    f => new ThemeAssetRepository<TContext>(f),
+                    c => new ThemeAssetRepository<TContext>(c)));
             services.AddScoped<IThemePresentRepository>(sp =>
                 CreateRepository<ThemePresentRepository<TContext>, TContext>(sp,
                     f => new ThemePresentRepository<TContext>(f),

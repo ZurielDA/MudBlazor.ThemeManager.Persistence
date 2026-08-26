@@ -9,37 +9,38 @@ namespace SAMACDX.ThemeManager.Persistence.Services.Theme
     public class ThemeFaviconService : IThemeFaviconService
     {
         private readonly IThemeFileStorageService _fileStorageService;
-        private readonly IThemeFaviconRepository _themeFaviconRepository;
+        private readonly IThemeAssetRepository _themeAssetRepository;
 
-        public ThemeFaviconService(IThemeFileStorageService fileStorageService, IThemeFaviconRepository themeFaviconRepository)
+        public ThemeFaviconService(IThemeFileStorageService fileStorageService, IThemeAssetRepository themeAssetRepository)
         { 
             _fileStorageService = fileStorageService;
-            _themeFaviconRepository = themeFaviconRepository;
+            _themeAssetRepository = themeAssetRepository;
         }
 
-        public async Task<List<ThemeFavicon>> GetAllByThemeCatalogIdAsync(int id)
+        public async Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id)
         {
-            var favicons = await _themeFaviconRepository.FindAsync(t => t.ThemeCatalogId == id);
+            var favicons = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == id && t.Type == ThemeAssetType.Favicon);
 
             return favicons.ToList();
         }
 
-        public async Task<ThemeFavicon> CreateAsync(ThemeFavicon themeFavicon, IBrowserFile file)
+        public async Task<ThemeAsset> CreateAsync(ThemeAsset themeFavicon, IBrowserFile file)
         {
             string path = await _fileStorageService.SaveFileAsync(file, "Uploads/icons");
 
             themeFavicon.Path = path;
+            themeFavicon.Type = ThemeAssetType.Favicon;
 
-            return  await _themeFaviconRepository.AddAsync(themeFavicon);
+            return  await _themeAssetRepository.AddAsync(themeFavicon);
         }
 
-        public async Task<List<ThemeFavicon>> ActivateAsync(int themeCatalogId, int themeFaviconId)
+        public async Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeFaviconId)
         {
-            var favicons = await _themeFaviconRepository.FindAsync(t => t.ThemeCatalogId == themeCatalogId);
+            var favicons = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == themeCatalogId && t.Type == ThemeAssetType.Favicon);
 
             favicons.ToList().ForEach(t => t.IsActive = t.Id == themeFaviconId);
 
-            await _themeFaviconRepository.UpdateRangeAsync(favicons);
+            await _themeAssetRepository.UpdateRangeAsync(favicons);
 
             return favicons.ToList();
         }

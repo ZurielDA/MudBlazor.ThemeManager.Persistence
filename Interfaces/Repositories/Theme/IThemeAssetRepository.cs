@@ -2,7 +2,7 @@
 
 namespace SAMACDX.ThemeManager.Persistence.Interfaces.Repositories.Theme
 {
-    public interface IThemeFaviconRepository : IGenericRepository<ThemeFavicon>
+    public interface IThemeAssetRepository : IGenericRepository<ThemeAsset>
     {
     }
 }

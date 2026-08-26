@@ -13,8 +13,8 @@
     {
         <MudStack Spacing="2">
             <MudText><b>Tema activo:</b> @_activeCatalog.Name</MudText>
-            <MudText><b>Favicon activo:</b> @(_activeCatalog.ThemeFavicons?.FirstOrDefault(f => f.IsActive)?.Path ?? "(ninguno)")</MudText>
-            <MudText><b>Logo activo:</b> @(_activeCatalog.ThemeLogos?.FirstOrDefault(l => l.IsActive)?.Path ?? "(ninguno)")</MudText>
+            <MudText><b>Favicon activo:</b> @(_activeCatalog.ThemeAssets?.FirstOrDefault(a => a.IsActive && a.Type == ThemeAssetType.Favicon)?.Path ?? "(ninguno)")</MudText>
+            <MudText><b>Logo activo:</b> @(_activeCatalog.ThemeAssets?.FirstOrDefault(a => a.IsActive && a.Type == ThemeAssetType.Logo)?.Path ?? "(ninguno)")</MudText>
             <MudText><b>GetCurrentLogoPathAsync():</b> @(_logoPath ?? "(vacío)")</MudText>
         </MudStack>
 

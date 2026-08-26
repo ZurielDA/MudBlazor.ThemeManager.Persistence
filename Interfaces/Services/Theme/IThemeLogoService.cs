@@ -5,11 +5,11 @@ namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 {
     public interface IThemeLogoService
     {
-        Task<List<ThemeLogo>> GetAllByThemeCatalogIdAsync(int id);
+        Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id);
 
-        Task<ThemeLogo> CreateAsync(ThemeLogo themeLogo, IBrowserFile browserFile);
+        Task<ThemeAsset> CreateAsync(ThemeAsset themeLogo, IBrowserFile browserFile);
 
-        Task<List<ThemeLogo>> ActivateAsync(int themeCatalogId, int themeLogoId);
+        Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeLogoId);
         
         Task<string> GetCurrentLogoPathAsync();
     }

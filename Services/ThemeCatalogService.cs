@@ -32,14 +32,12 @@ namespace SAMACDX.ThemeManager.Persistence.Services
         {
             var catalog = await _themeCatalogRepository.Query(
                 t => t.ThemePresent,
-                t => t.ThemeFavicons,
-                t => t.ThemeLogos
+                t => t.ThemeAssets
             ).FirstOrDefaultAsync(t => t.IsActive);
 
             if (catalog is not null)
             {
-                catalog.ThemeFavicons = catalog.ThemeFavicons?.Where(f => f.IsActive).ToList() ?? new();
-                catalog.ThemeLogos = catalog.ThemeLogos?.Where(l => l.IsActive).ToList() ?? new();
+                catalog.ThemeAssets = catalog.ThemeAssets?.Where(a => a.IsActive).ToList() ?? new();
             }
 
             return catalog;

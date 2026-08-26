@@ -5,10 +5,10 @@ namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 {
     public interface IThemeFaviconService
     {
-        Task<List<ThemeFavicon>> GetAllByThemeCatalogIdAsync(int id);
+        Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id);
 
-        Task<ThemeFavicon> CreateAsync(ThemeFavicon themeFavicon, IBrowserFile browserFile);
+        Task<ThemeAsset> CreateAsync(ThemeAsset themeFavicon, IBrowserFile browserFile);
 
-        Task<List<ThemeFavicon>> ActivateAsync(int themeCatalogId, int themeFaviconId);
+        Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeFaviconId);
     }
 }
