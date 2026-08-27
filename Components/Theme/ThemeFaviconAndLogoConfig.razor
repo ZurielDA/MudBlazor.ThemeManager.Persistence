@@ -50,10 +50,8 @@
                         </MudCardHeader>
                         <MudCardContent>
                             <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
-                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:88px; height:88px; flex:0 0 88px;">
-                                    <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:56px; width:auto;">
+                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:100px; height:100px; flex:0 0 100px;">
                                         <MudImage Src="@_faviconPreviewPath" />
-                                    </MudAvatar>
                                 </MudPaper>
                                 <MudStack Spacing="1" Class="flex-grow-1" Style="min-width:0;">
                                     <MudText Typo="Typo.body2"><b>@(_themeFavicons.FirstOrDefault(f => f.Id == _activeFaviconId)?.Name ?? "Favicon por defecto")</b></MudText>
@@ -114,10 +112,8 @@
                         </MudCardHeader>
                         <MudCardContent>
                             <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
-                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:88px; height:88px; flex:0 0 88px;">
-                                    <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:56px; width:auto;">
+                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:100px; height:100px; flex:0 0 100px;">
                                         <MudImage Src="@_logoPreviewPath" />
-                                    </MudAvatar>
                                 </MudPaper>
                                 <MudStack Spacing="1" Class="flex-grow-1" Style="min-width:0;">
                                     <MudText Typo="Typo.body2"><b>@(_themeLogos.FirstOrDefault(l => l.Id == _activeLogoId)?.Name ?? "Logotipo por defecto")</b></MudText>

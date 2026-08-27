@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" width="160" height="40" role="img" aria-label="Logo predeterminado">
-  <rect x="0.5" y="0.5" width="159" height="39" rx="6" fill="none" stroke="#594AE2" stroke-width="1" stroke-dasharray="4 3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 81 40" width="80" height="40" role="img" aria-label="Logo predeterminado">
+  <rect x="0.5" y="0.5" width="80" height="39" rx="6" fill="none" stroke="#594AE2" stroke-width="1" stroke-dasharray="4 3"/>
   <circle cx="24" cy="20" r="9" fill="#594AE2"/>
   <text x="42" y="25" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#594AE2">Logo</text>
 </svg>
