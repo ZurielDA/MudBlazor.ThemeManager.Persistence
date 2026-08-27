@@ -11,153 +11,159 @@
 @inject ThemeManagerPersistenceOptions Options
 @inject ISnackbar SnackbarService
 
-<MudPaper Class="py-8 my-8" Style="overflow:hidden; position:relative;">
-    <MudPaper Class="mx-6 my-6" Elevation="0">
-        <MudStack Spacing="2">
-            <MudText Typo="Typo.h4">
-                Configurador de Favicon y Logo
-            </MudText>
+<MudPaper Elevation="0" Class="pa-4">
+    <MudGrid Spacing="6">
+        @* Columna informativa *@
+        <MudItem xs="12" md="3">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.subtitle1"><b>Favicon y logotipo</b></MudText>
 
-            <MudText Typo="Typo.body1">
-                Personaliza el favicon y logotipos de la plataforma para alinear la identidad visual con la de tu institución o marca.
-                Desde aquí puedes actualizar las imágenes principales y sus variaciones, asegurando una apariencia coherente en toda la interfaz de usuario.
-            </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Personaliza el favicon y logotipos de la plataforma para alinear la identidad visual con la de tu institución o marca.
+                </MudText>
 
-            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                Recomendación: utiliza imágenes en formato <b>SVG</b> para obtener mejor calidad y escalabilidad en distintos dispositivos.
-            </MudText>
-        </MudStack>
-    </MudPaper>
-    <MudGrid Class="mx-1">
-        @* Sección de Favicon *@
-        <MudItem xs="12" sm="6">
-            <MudPaper Elevation="1" Class="d-flex align-center justify-center mud-width-full pb-2">
-                <MudText Typo="Typo.h6">Favicon</MudText>
-            </MudPaper>
-            <MudPaper Class="d-flex flex-column mud-width-full" Elevation="1">
-                <MudGrid>
-                    <MudItem xs="12" md="8">
-                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full pt-4">
-                            <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:100px; width:auto;">
-                                <MudImage Src="@_faviconPreviewPath" />
-                            </MudAvatar>
-                        </MudPaper>
-                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
-                            <MudFileUpload T="IBrowserFile" OnFilesChanged="UploadFiles" Accept="image/*" Class="mx-2">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Al guardar un favicon o logotipo, estos se almacenarán dentro de la <b>Configuración Visual</b> seleccionada en el <b>Configurador de Tema Visual</b>.
+                </MudText>
+
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                    Recomendación: usa archivos <b>SVG</b> para mejor calidad y escalabilidad.
+                </MudAlert>
+            </MudStack>
+        </MudItem>
+
+        @* Tarjetas de Favicon y Logo *@
+        <MudItem xs="12" md="9">
+            <MudGrid Spacing="4">
+                @* Sección de Favicon *@
+                <MudItem xs="12" sm="6">
+                    <MudCard Outlined="true">
+                        <MudCardHeader Class="pb-0">
+                            <CardHeaderContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.subtitle1"><b>Favicon</b></MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="@(_faviconFileBytes != null || _hasSelectionChanged ? Color.Warning : Color.Success)">
+                                        @(_faviconFileBytes != null ? "Sin guardar" : _hasSelectionChanged ? "Selección sin activar" : "Activo")
+                                    </MudChip>
+                                </MudStack>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
+                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:88px; height:88px; flex:0 0 88px;">
+                                    <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:56px; width:auto;">
+                                        <MudImage Src="@_faviconPreviewPath" />
+                                    </MudAvatar>
+                                </MudPaper>
+                                <MudStack Spacing="1" Class="flex-grow-1" Style="min-width:0;">
+                                    <MudText Typo="Typo.body2"><b>@(_themeFavicons.FirstOrDefault(f => f.Id == _activeFaviconId)?.Name ?? "Favicon por defecto")</b></MudText>
+                                    <MudSelect T="int" Label="Favicon guardado" Dense="true" Margin="Margin.Dense" Value="@_activeFaviconId" ValueChanged="OnActivateFaviconAsyncChanged">
+                                        @foreach (var themeIcon in _themeFavicons)
+                                        {
+                                            <MudSelectItem Value="@themeIcon.Id">@themeIcon.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudStack>
+                            </MudStack>
+                        </MudCardContent>
+                        <MudCardActions Class="px-4 pb-3 pt-0">
+                            <MudFileUpload T="IBrowserFile" OnFilesChanged="UploadFiles" Accept="image/*">
                                 <ActivatorContent>
-                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Image" Size="Size.Small" Color="Color.Secondary" Class="rounded-pill">Cargar</MudButton>
+                                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Upload" Size="Size.Small">Reemplazar</MudButton>
                                 </ActivatorContent>
-                            </MudFileUpload>                                
-                            <MudPaper Elevation="4" Class="rounded-pill mx-2">
-                                <MudButton Disabled="_faviconFileBytes == null || _isSavingThemeFavicon" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveFaviconAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
-                                    @if (_isSavingThemeFavicon)
-                                    {
-                                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                                        <MudText Class="ms-2">Guardando</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudText>Guardar</MudText>
-                                    }                                        
-                                </MudButton>
-                            </MudPaper>
-                        </MudPaper>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudPaper Elevation="0" Class="p-4 mt-2">
-                            <MudText Typo="Typo.h6">Favicons</MudText>
-                            <MudSelect T="int" Label="Favicon Seleccionado" Dense="true" Margin="Margin.Dense" Value="@_activeFaviconId" ValueChanged="OnActivateFaviconAsyncChanged">
-                                @foreach (var themeIcon in _themeFavicons)
+                            </MudFileUpload>
+                            <MudButton Disabled="_faviconFileBytes == null || _isSavingThemeFavicon" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveFaviconAsync" Size="Size.Small" Color="Color.Primary" Class="ml-2">
+                                @if (_isSavingThemeFavicon)
                                 {
-                                    <MudSelectItem Value="@themeIcon.Id">@themeIcon.Name</MudSelectItem>
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">Guardando</MudText>
                                 }
-                            </MudSelect>
-                        </MudPaper>
-                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
-                            <MudButton OnClick="ActivateFaviconAsync" Disabled="!_hasSelectionChanged || _isActivatingThemeFavicon" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Error">
-
+                                else
+                                {
+                                    <MudText>Guardar</MudText>
+                                }
+                            </MudButton>
+                            <MudButton OnClick="ActivateFaviconAsync" Disabled="!_hasSelectionChanged || _isActivatingThemeFavicon" Variant="Variant.Text" Size="Size.Small" Color="Color.Primary">
                                 @if (_isActivatingThemeFavicon)
                                 {
                                     <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                                    <MudText Class="ms-2">Activando Favicon</MudText>
+                                    <MudText Class="ms-2">Activando</MudText>
                                 }
                                 else
                                 {
-                                    <MudText>Activar Favicon</MudText>
+                                    <MudText>Activar</MudText>
                                 }
-
                             </MudButton>
-                        </MudPaper>                            
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
-        </MudItem>
-        @* -- *@
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+                @* -- *@
 
-        @* Sección de Logotipo *@
-        <MudItem xs="12" sm="6">
-            <MudPaper Elevation="1" Class="d-flex align-center justify-center mud-width-full pb-2">
-                <MudText Typo="Typo.h6">Logo</MudText>
-            </MudPaper>
-            <MudPaper Class="d-flex flex-column mud-width-full" Elevation="1">
-                <MudGrid>
-                    <MudItem xs="12" md="8">
-                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full pt-4">
-                            <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:100px; width:auto;">
-                                <MudImage Src="@_logoPreviewPath" />
-                            </MudAvatar>
-                        </MudPaper>
-                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
-                            <MudFileUpload T="IBrowserFile" OnFilesChanged="UploadLogoFile" Accept="image/png,image/jpeg" Class="mx-2">
+                @* Sección de Logotipo *@
+                <MudItem xs="12" sm="6">
+                    <MudCard Outlined="true">
+                        <MudCardHeader Class="pb-0">
+                            <CardHeaderContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.subtitle1"><b>Logotipo</b></MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="@(_logoFileBytes != null || _hasLogoSelectionChanged ? Color.Warning : Color.Success)">
+                                        @(_logoFileBytes != null ? "Sin guardar" : _hasLogoSelectionChanged ? "Selección sin activar" : "Activo")
+                                    </MudChip>
+                                </MudStack>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
+                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:88px; height:88px; flex:0 0 88px;">
+                                    <MudAvatar Rounded="true" Variant="Variant.Outlined" Class="border-none" Style="height:56px; width:auto;">
+                                        <MudImage Src="@_logoPreviewPath" />
+                                    </MudAvatar>
+                                </MudPaper>
+                                <MudStack Spacing="1" Class="flex-grow-1" Style="min-width:0;">
+                                    <MudText Typo="Typo.body2"><b>@(_themeLogos.FirstOrDefault(l => l.Id == _activeLogoId)?.Name ?? "Logotipo por defecto")</b></MudText>
+                                    <MudSelect T="int" Label="Logo guardado" Dense="true" Margin="Margin.Dense" Value="@_activeLogoId" ValueChanged="OnActivateLogoAsyncChanged">
+                                        @foreach (var themeLogo in _themeLogos)
+                                        {
+                                            <MudSelectItem Value="@themeLogo.Id">@themeLogo.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudStack>
+                            </MudStack>
+                        </MudCardContent>
+                        <MudCardActions Class="px-4 pb-3 pt-0">
+                            <MudFileUpload T="IBrowserFile" OnFilesChanged="UploadLogoFile" Accept="image/png,image/jpeg">
                                 <ActivatorContent>
-                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Image" Size="Size.Small" Color="Color.Secondary" Class="rounded-pill">Cargar</MudButton>
+                                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Upload" Size="Size.Small">Reemplazar</MudButton>
                                 </ActivatorContent>
                             </MudFileUpload>
-                            <MudPaper Elevation="4" Class="rounded-pill mx-2">
-                                <MudButton Disabled="_logoFileBytes == null || _isSavingThemeLogo" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveLogoAsync" Size="Size.Small" Color="Color.Primary" Class="rounded-pill">
-                                    @if (_isSavingThemeLogo)
-                                    {
-                                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                                        <MudText Class="ms-2">Guardando</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudText>Guardar</MudText>
-                                    }
-                                </MudButton>
-                            </MudPaper>
-                        </MudPaper>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudPaper Elevation="0" Class="p-4 mt-2">
-                            <MudText Typo="Typo.h6">Logos</MudText>
-                            <MudSelect T="int" Label="Logo Seleccionado" Dense="true" Margin="Margin.Dense" Value="@_activeLogoId" ValueChanged="OnActivateLogoAsyncChanged">
-                                @foreach (var themeLogo in _themeLogos)
+                            <MudButton Disabled="_logoFileBytes == null || _isSavingThemeLogo" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveLogoAsync" Size="Size.Small" Color="Color.Primary" Class="ml-2">
+                                @if (_isSavingThemeLogo)
                                 {
-                                    <MudSelectItem Value="@themeLogo.Id">@themeLogo.Name</MudSelectItem>
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">Guardando</MudText>
                                 }
-                            </MudSelect>
-                        </MudPaper>
-                        <MudPaper Elevation="0" Class="d-flex align-center justify-center mud-width-full py-4 mt-2">
-                            <MudButton OnClick="ActivateLogoAsync" Disabled="!_hasLogoSelectionChanged || _isActivatingThemeLogo" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Error">
-
+                                else
+                                {
+                                    <MudText>Guardar</MudText>
+                                }
+                            </MudButton>
+                            <MudButton OnClick="ActivateLogoAsync" Disabled="!_hasLogoSelectionChanged || _isActivatingThemeLogo" Variant="Variant.Text" Size="Size.Small" Color="Color.Primary">
                                 @if (_isActivatingThemeLogo)
                                 {
                                     <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                                    <MudText Class="ms-2">Activando Logo</MudText>
+                                    <MudText Class="ms-2">Activando</MudText>
                                 }
                                 else
                                 {
-                                    <MudText>Activar Logo</MudText>
+                                    <MudText>Activar</MudText>
                                 }
-
                             </MudButton>
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+                @* -- *@
+            </MudGrid>
         </MudItem>
-        @* -- *@
     </MudGrid>
 </MudPaper>
 
