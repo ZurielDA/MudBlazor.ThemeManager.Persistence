@@ -7,7 +7,5 @@
         public string Path { get; set; }
         public ThemeAssetType Type { get; set; }
         public bool IsActive { get; set; } = false;
-        public int ThemeCatalogId { get; set; }
-        public ThemeCatalog ThemeCatalog { get; set; }
     }
 }

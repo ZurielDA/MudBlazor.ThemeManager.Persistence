@@ -6,7 +6,6 @@
 
 
 @inject IThemeManagerService ThemeManagerService
-@inject IThemeCatalogService ThemeCatalogService
 @inject IThemePresentService ThemePresentService
 @inject ISnackbar SnackbarService
 
@@ -37,8 +36,8 @@
             <MudItem>
                 <MudPaper Elevation="0" Class="px-2 d-flex justify-center flex-wrap" Width="280px">
                     <MudTextField T="string" @bind-Value="nameTheme" Label="Nombre del Tema" Required="true" RequiredError="@nameThemeErrorMessage" Error="@nameThemeError" ErrorText="@nameThemeErrorMessage" Variant="Variant.Text" Clearable="true" AdornmentColor="Color.Primary" Immediate="true" Class="pa-4" />
-                    <MudButton Disabled="!ValidateThemeName() || isSavingThemeCatalog" Variant="Variant.Filled" Color="Color.Primary" OnClick="saveThemeCatalog">
-                        @if (isSavingThemeCatalog)
+                    <MudButton Disabled="!ValidateThemeName() || isSavingThemePresent" Variant="Variant.Filled" Color="Color.Primary" OnClick="saveThemePresent">
+                        @if (isSavingThemePresent)
                         {
                             <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
                             <MudText Class="ms-2">Guardando</MudText>
@@ -52,7 +51,7 @@
             </MudItem>
         </MudGrid>
         <MudThemeManager Theme="themeManagerTheme" ThemeChanged="UpdateTheme" ThemePresets="@themePresets" ThemePresetsChanged="updateThemePreset"
-                         OnClickActiveThemePresent="OnClickActiveThemePresent" IsSavingActiveThemeCatalog="@isSavingActiveThemeCatalog" />
+                         OnClickActiveThemePresent="OnClickActiveThemePresent" IsSavingActiveThemeCatalog="@isSavingActiveThemePresent" />
         <div class="d-flex justify-center align-center mud-height-full">
             <ComponentsPreview />
         </div>
@@ -65,24 +64,21 @@
     private string? nameTheme;
     private bool nameThemeError = false;
     private string nameThemeErrorMessage = "El campo es obligatorio";
-    private bool isSavingThemeCatalog = false;
-    private bool isSavingActiveThemeCatalog = false;
+    private bool isSavingThemePresent = false;
+    private bool isSavingActiveThemePresent = false;
 
     private Dictionary<int, ThemePreset> themePresets = new Dictionary<int, ThemePreset>();
-    private List<ThemeCatalog>? themesCatalog;
+    private List<ThemePresent>? themePresents;
     private ThemeManagerTheme themeManagerTheme = new ThemeManagerTheme();
-    private ThemeCatalog? themeCatalogActive;
-    private ThemeCatalog? newThemeCatalog;
+    private ThemePresent? activeThemePresent;
+    private ThemePresent? newThemePresent;
     private ThemePresent? selectedThemePresent;
-
-    [Parameter]
-    public EventCallback<ThemeCatalog> ThemeCatalogChanged { get; set; }
 
     protected override async Task OnInitializedAsync()
     {       
         try
         {
-            await GetThemesCatalog();
+            await GetThemePresents();
         }
         catch (Exception)
         {
@@ -107,35 +103,33 @@
 
     private async Task GetActiveThemeManagerTheme()
     {
-        themeCatalogActive = await ThemeCatalogService.GetActiveAsync();
+        activeThemePresent = await ThemePresentService.GetActiveAsync();
 
-        if (themeCatalogActive?.ThemePresent?.JsonData != null)
+        if (activeThemePresent?.JsonData != null)
         {
-            themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(themeCatalogActive.ThemePresent.JsonData)!;            
-
-            await ThemeCatalogChanged.InvokeAsync(themeCatalogActive);
+            themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(activeThemePresent.JsonData)!;
         }
     }
 
-    private async Task GetThemesCatalog()
+    private async Task GetThemePresents()
     {
-        themesCatalog = await ThemeCatalogService.GetAllAsync();
+        themePresents = await ThemePresentService.GetAllAsync();
 
-        themePresets = themesCatalog.ToDictionary(
-            themeCatalog => themeCatalog.Id,
-            themeCatalog => new ThemePreset(themeCatalog.Id, themeCatalog.Name, themeCatalog.IsActive)
+        themePresets = themePresents.ToDictionary(
+            themePresent => themePresent.Id,
+            themePresent => new ThemePreset(themePresent.Id, themePresent.Name, themePresent.IsActive)
         );
     }
 
-    private void AddThemesCatalog(ThemeCatalog newThemeCatalog)
+    private void AddThemePresent(ThemePresent newThemePresent)
     {
-        if (newThemeCatalog != null && themesCatalog != null)
+        if (newThemePresent != null && themePresents != null)
         {
-            themesCatalog.Add(newThemeCatalog);
+            themePresents.Add(newThemePresent);
         }
-        else if (newThemeCatalog != null)
+        else if (newThemePresent != null)
         {
-            themesCatalog = new List<ThemeCatalog> { newThemeCatalog };
+            themePresents = new List<ThemePresent> { newThemePresent };
         }
     }
 
@@ -153,24 +147,23 @@
         StateHasChanged();
     }
 
-    private async Task saveThemeCatalog()
+    private async Task saveThemePresent()
     {
         if (!ValidateThemeName())
         {
             return;
         }
 
-        isSavingThemeCatalog = true;
+        isSavingThemePresent = true;
 
         try
         {
-            newThemeCatalog = await ThemeCatalogService.CreateWithThemePresentAsync(
-                new ThemeCatalog { Name = nameTheme! },
-                new ThemePresent { JsonData = JsonHelper.Serialize(themeManagerTheme) }
+            newThemePresent = await ThemePresentService.CreateAsync(
+                new ThemePresent { Name = nameTheme!, JsonData = JsonHelper.Serialize(themeManagerTheme) }
             );
 
-            AddThemesCatalog(newThemeCatalog);
-            AddThemePreset(new ThemePreset(newThemeCatalog.Id, newThemeCatalog.Name, newThemeCatalog.IsActive));
+            AddThemePresent(newThemePresent);
+            AddThemePreset(new ThemePreset(newThemePresent.Id, newThemePresent.Name, newThemePresent.IsActive));
 
             nameTheme = "";
         }
@@ -185,7 +178,7 @@
         }
         finally
         {
-            isSavingThemeCatalog = false;
+            isSavingThemePresent = false;
         }
     }
 
@@ -216,7 +209,7 @@
     {
         try
         {
-            selectedThemePresent = await ThemePresentService.GetByThemeIdAsync(updateThemePreset.Id);
+            selectedThemePresent = await ThemePresentService.GetByIdAsync(updateThemePreset.Id);
 
             if (selectedThemePresent?.JsonData is null)
             {
@@ -234,13 +227,6 @@
             }
 
             await UpdateTheme(themeManagerTheme);
-
-            ThemeCatalog? selecteThemeCatalog = themesCatalog?.Find((ThemeCatalog themeCatalog) => themeCatalog.Id == updateThemePreset.Id);
-
-            if (selecteThemeCatalog is not null)
-            {
-                await ThemeCatalogChanged.InvokeAsync(selecteThemeCatalog);
-            }
         }
         catch (Exception)
         {
@@ -255,11 +241,11 @@
             return;
         }
 
-        isSavingActiveThemeCatalog = true;
+        isSavingActiveThemePresent = true;
 
         try
         {
-            await ThemeCatalogService.ActivateAsync(selectedThemePresent.ThemeCatalogId);
+            await ThemePresentService.ActivateAsync(selectedThemePresent.Id);
 
             await GetActiveThemeManagerTheme();
         }
@@ -269,7 +255,7 @@
         }
         finally
         {
-            isSavingActiveThemeCatalog = false;
+            isSavingActiveThemePresent = false;
         }
     }
 }

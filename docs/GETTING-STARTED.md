@@ -59,7 +59,6 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     // Recomendado (no obligatorio, ver DBCONTEXT-AND-MIGRATIONS.md):
-    public DbSet<ThemeCatalog> ThemeCatalogs => Set<ThemeCatalog>();
     public DbSet<ThemeAsset> ThemeAssets => Set<ThemeAsset>();
     public DbSet<ThemePresent> ThemesPresent => Set<ThemePresent>();
     public DbSet<ThemeTerm> ThemeTerms => Set<ThemeTerm>();
@@ -88,10 +87,10 @@ dotnet ef database update -c AppDbContext
 ## 6. Obtener el Theme activo
 
 ```csharp
-@inject IThemeCatalogService ThemeCatalogService
+@inject IThemePresentService ThemePresentService
 
-var activo = await ThemeCatalogService.GetActiveAsync();
-ThemeManagerTheme? tema = activo?.ThemePresent?.JsonData is { } json
+var activo = await ThemePresentService.GetActiveAsync();
+ThemeManagerTheme? tema = activo?.JsonData is { } json
     ? JsonHelper.Deserialize<ThemeManagerTheme>(json)
     : null;
 ```
@@ -103,7 +102,7 @@ En el `Layout` raíz (`MainLayout.razor`):
 ```razor
 @inherits LayoutComponentBase
 @inject IThemeManagerService ThemeManagerService
-@inject IThemeCatalogService ThemeCatalogService
+@inject IThemePresentService ThemePresentService
 
 <MudThemeProvider Theme="_themeManagerTheme.Theme" />
 <MudPopoverProvider />
@@ -124,8 +123,8 @@ En el `Layout` raíz (`MainLayout.razor`):
 
     protected override async Task OnInitializedAsync()
     {
-        var activo = await ThemeCatalogService.GetActiveAsync();
-        if (activo?.ThemePresent?.JsonData is { } json)
+        var activo = await ThemePresentService.GetActiveAsync();
+        if (activo?.JsonData is { } json)
         {
             _themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(json) ?? new();
         }
@@ -184,37 +183,36 @@ Para reflejarlo en el `<head>` del documento, usar el mecanismo de cabecera de B
 
 ## 10. Obtener el Branding activo
 
-No hay un único método "branding" — se obtienen logo y favicon por separado (pasos 8 y 9) y, si se necesita, también los `ThemeAssets` completos del tema activo:
+No hay un único método "branding" — se obtienen logo y favicon por separado (pasos 8 y 9). Ambos son recursos globales de la aplicación, independientes de cuál tema esté activo:
 
 ```csharp
-var activo = await ThemeCatalogService.GetActiveAsync();
-var assetsDeBranding = activo?.ThemeAssets; // logo(s) y favicon(s) activos de ese catálogo
+string logoPath = await ThemeLogoService.GetCurrentLogoPathAsync();
+string faviconPath = await ThemeFaviconService.GetCurrentFaviconPathAsync();
 ```
 
 ## 11. Obtener los temas disponibles
 
 ```csharp
-@inject IThemeCatalogService ThemeCatalogService
+@inject IThemePresentService ThemePresentService
 
-List<ThemeCatalog> temas = await ThemeCatalogService.GetAllAsync();
+List<ThemePresent> temas = await ThemePresentService.GetAllAsync();
 ```
 
 ## 12. Activar un tema
 
 ```csharp
-await ThemeCatalogService.ActivateAsync(idDelTemaElegido);
+await ThemePresentService.ActivateAsync(idDelTemaElegido);
 ```
 
 ## 13. Persistir cambios
 
 ```csharp
-var nuevo = await ThemeCatalogService.CreateWithThemePresentAsync(
-    new ThemeCatalog { Name = "Tema institucional" },
-    new ThemePresent { JsonData = JsonHelper.Serialize(temaEditado) }
+var nuevo = await ThemePresentService.CreateAsync(
+    new ThemePresent { Name = "Tema institucional", JsonData = JsonHelper.Serialize(temaEditado) }
 );
 ```
 
-Recordar (ver [THEMES.md](THEMES.md)): esto siempre crea un catálogo **nuevo**; no hay una operación de "actualizar" el `ThemePresent` de un catálogo ya existente.
+Recordar (ver [THEMES.md](THEMES.md)): esto siempre crea un tema **nuevo**; no hay una operación de "actualizar" el `JsonData` de un tema ya existente.
 
 ## Montar la pantalla de administración
 
@@ -235,5 +233,5 @@ En vez de reconstruir la UI de administración a mano, se puede montar directame
 Con los 13 pasos anteriores completos, la frontera queda así (ver también [ARCHITECTURE.md](ARCHITECTURE.md)):
 
 - `MudBlazor.ThemeManager`: el editor visual, usado internamente por `ThemePaletteSelector.razor` — la aplicación no lo referencia directamente salvo por su hoja de estilos en `App.razor`.
-- `SAMACDX.ThemeManager.Persistence`: toda la persistencia/activación/branding — la aplicación solo inyecta sus interfaces (`IThemeCatalogService`, `IThemeLogoService`, `IThemeFaviconService`, etc.) y, opcionalmente, monta sus componentes de administración.
+- `SAMACDX.ThemeManager.Persistence`: toda la persistencia/activación/branding — la aplicación solo inyecta sus interfaces (`IThemePresentService`, `IThemeLogoService`, `IThemeFaviconService`, etc.) y, opcionalmente, monta sus componentes de administración.
 - La aplicación consumidora: su `DbContext` con el modelo aplicado, su almacenamiento de archivos, y el cableado del `Layout`/`AppBar`/`<head>` a los recursos activos.

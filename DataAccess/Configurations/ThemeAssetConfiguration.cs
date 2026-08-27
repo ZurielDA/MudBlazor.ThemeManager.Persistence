@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace SAMACDX.ThemeManager.Persistence.DataAccess.Configurations
 {
     /// <summary>
-    /// La relacion con ThemeCatalog se configura desde ThemeCatalogConfiguration
-    /// (lado "uno" de la relacion uno-a-muchos) para no declararla dos veces.
+    /// ThemeAsset es un catalogo independiente: no tiene ninguna relacion con
+    /// ThemePresent ni con ninguna otra entidad de este modulo.
     /// </summary>
     public class ThemeAssetConfiguration : IEntityTypeConfiguration<ThemeAsset>
     {

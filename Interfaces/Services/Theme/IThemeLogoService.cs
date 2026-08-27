@@ -5,15 +5,15 @@ namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 {
     public interface IThemeLogoService
     {
-        Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id);
+        Task<List<ThemeAsset>> GetAllAsync();
 
         Task<ThemeAsset> CreateAsync(ThemeAsset themeLogo, ThemeAssetFileContent file);
 
-        Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeLogoId);
+        Task<List<ThemeAsset>> ActivateAsync(int themeLogoId);
 
         /// <summary>
-        /// Ruta del logo activo del catalogo de tema ACTUALMENTE ACTIVO
-        /// (ThemeCatalog.IsActive == true), o cadena vacia si no hay ninguno.
+        /// Ruta del logo actualmente activo, o cadena vacia si no hay
+        /// ninguno.
         /// </summary>
         Task<string> GetCurrentLogoPathAsync();
 

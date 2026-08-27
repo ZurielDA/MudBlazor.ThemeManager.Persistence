@@ -10,7 +10,7 @@
 | MudBlazor | `[8.0.0, 9.0.0)` | Toda la UI de la librería y del editor (`MudBlazor.ThemeManager`) depende de sus componentes. |
 | Microsoft.EntityFrameworkCore | `[9.0.0, 10.0.0)` | Entidades y `IEntityTypeConfiguration<T>` de la librería. |
 | Microsoft.AspNetCore.Components.Web | `[9.0.1, 10.0.0)` | Requerido transitivamente por MudBlazor 8.0.0. |
-| Microsoft.Extensions.Caching.Memory | `[9.0.0, 10.0.0)` | `IThemeCatalogService`/`ITermService` cachean en `IMemoryCache`. |
+| Microsoft.Extensions.Caching.Memory | `[9.0.0, 10.0.0)` | `IThemePresentService`/`ITermService` cachean en `IMemoryCache`. |
 | Microsoft.Extensions.DependencyInjection.Abstractions | `[9.0.1, 10.0.0)` | Requerido transitivamente por MudBlazor 8.0.0 (vía `Microsoft.Extensions.Localization`). |
 | **Fork `MudBlazor.ThemeManager`** (`External/MudBlazor.ThemeManager`, submódulo git) | commit fijado del fork `SAMACDX/ThemeManager.git`, rama `gdip-theme-manager` | Ver detalle abajo — **no existe como paquete NuGet independiente**. |
 | Un proveedor de base de datos de EF Core (SQLite, SQL Server, PostgreSQL, etc.) | el que use la app | La librería no depende de ninguno en particular; solo usa `DbContext`/`ModelBuilder` de EF Core. |

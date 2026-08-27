@@ -5,15 +5,15 @@ namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 {
     public interface IThemeFaviconService
     {
-        Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id);
+        Task<List<ThemeAsset>> GetAllAsync();
 
         Task<ThemeAsset> CreateAsync(ThemeAsset themeFavicon, ThemeAssetFileContent file);
 
-        Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeFaviconId);
+        Task<List<ThemeAsset>> ActivateAsync(int themeFaviconId);
 
         /// <summary>
-        /// Ruta del favicon activo del catalogo de tema ACTUALMENTE ACTIVO
-        /// (ThemeCatalog.IsActive == true), o cadena vacia si no hay ninguno.
+        /// Ruta del favicon actualmente activo, o cadena vacia si no hay
+        /// ninguno.
         /// </summary>
         Task<string> GetCurrentFaviconPathAsync();
 

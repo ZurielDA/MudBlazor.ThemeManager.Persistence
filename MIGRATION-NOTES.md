@@ -1100,3 +1100,218 @@ de `Microsoft.EntityFrameworkCore` más alta que el piso `9.0.0` fijado en
 la librería), avisar para revisarlo — no se modificó preventivamente sin
 evidencia de un error real, siguiendo la práctica de no tocar
 `samples/TestHost` salvo necesidad concreta.
+
+## Etapa: eliminacion de `ThemeCatalog` y fusion en `ThemePresent` (2026-08-27)
+
+Refactor de persistencia para simplificar el modulo Theme/Branding a
+exactamente **dos entidades independientes**: `ThemePresent` (el tema,
+con nombre y estado) y `ThemeAsset` (recursos visuales, sin relacion con
+ningun tema). Se elimina por completo la entidad intermedia `ThemeCatalog`
+que hasta ahora conectaba ambas.
+
+### Modelo resultante
+
+```csharp
+public class ThemePresent
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public bool IsBase { get; set; } = false;
+    public bool IsActive { get; set; } = false;
+    public string JsonData { get; set; }
+}
+
+public class ThemeAsset
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string Path { get; set; }
+    public ThemeAssetType Type { get; set; }
+    public bool IsActive { get; set; } = false;
+}
+```
+
+`Name`, `IsBase` e `IsActive` se movieron de `ThemeCatalog` a
+`ThemePresent` (que ya tenia `JsonData`). `ThemeAsset` perdio
+`ThemeCatalogId`/`ThemeCatalog`. Ninguna de las dos entidades tiene FK
+hacia la otra ni hacia ninguna entidad mas. `ThemeAssetType` (`Logo`,
+`Favicon`) no cambio.
+
+### Archivos eliminados
+
+- `Entities/ThemeCatalog/ThemeCatalog.cs`
+- `DataAccess/Configurations/ThemeCatalogConfiguration.cs`
+- `DataAccess/Abstractions/IThemeCatalogRepository.cs`
+- `DataAccess/ThemeCatalogRepository.cs`
+- `Interfaces/Services/Theme/IThemeCatalogService.cs`
+- `Application/ThemeCatalogService.cs`
+
+### Servicios de aplicacion
+
+`IThemeCatalogService`/`ThemeCatalogService` se elimino por completo; su
+responsabilidad (listar/obtener/activar/crear/eliminar/evento) se fusiono
+dentro de `IThemePresentService`/`ThemePresentService`, ya que
+`ThemePresent` ahora ES el tema (no hay mas una entidad "catalogo" por
+separado). Cambios de firma respecto a los dos servicios anteriores:
+
+- `IThemePresentService.GetByThemeIdAsync(int id)` (buscaba por el Id del
+  `ThemeCatalog` padre) se renombro a `GetByIdAsync(int id)`: la
+  indireccion desaparece porque el propio Id de `ThemePresent` cumple
+  ahora el rol que antes cumplia `ThemeCatalog.Id`.
+- `ThemeCatalogService.CreateWithThemePresentAsync(ThemeCatalog,
+  ThemePresent)` (dos inserts + rollback compensatorio si el segundo
+  fallaba) se reemplazo por `ThemePresentService.CreateAsync(ThemePresent)`,
+  un unico insert. La logica de rollback compensatorio desaparece porque
+  ya no hay una segunda escritura que pueda fallar de forma parcial — no
+  es una omision, es la consecuencia directa de fusionar las dos
+  entidades en una.
+- `ThemeCatalogService.DeleteAsync(int id)` y el evento
+  `ThemeCatalogActivated` pasan a `ThemePresentService.DeleteAsync(int
+  id)` y `ThemePresentService.ThemePresentActivated`, con la misma logica
+  (no se puede eliminar el tema base ni el activo).
+
+`ThemeAssetOperations` (interno, usado por `ThemeFaviconService`/
+`ThemeLogoService`): `GetAllByThemeCatalogIdAsync(int)` → `GetAllAsync()`;
+`ActivateAsync(int themeCatalogId, int themeAssetId)` →
+`ActivateAsync(int themeAssetId)`; `GetCurrentPathAsync()` ya no filtra
+por catalogo activo, solo por `Type == _type && IsActive`. La
+exclusividad de "activo" para un asset pasa de estar acotada a
+`(ThemeCatalogId, Type)` a estar acotada solo a `Type`, de forma global
+para toda la aplicacion — consecuencia directa de que `ThemeAsset` ya no
+tiene ninguna relacion con un tema. `IThemeFaviconService`/
+`IThemeLogoService` reflejan el mismo cambio de firmas.
+
+### EF Core / DI
+
+`ModelBuilderExtensions.ApplyThemeManagerPersistenceModel()` aplica ahora
+solo `ThemePresentConfiguration` + `ThemeAssetConfiguration` (elimina
+`ThemeCatalogConfiguration`). Ninguna de las dos declara relaciones. El
+indice unico `[Index(nameof(Name), IsUnique = true)]` se movio de
+`ThemeCatalog` a `ThemePresent`. `ServiceCollectionExtensions` elimina el
+registro de `IThemeCatalogRepository`/`ThemeCatalogRepository<TContext>`
+e `IThemeCatalogService`/`ThemeCatalogService`.
+
+`ThemeManagerPersistenceOptions.ActiveCatalogCacheDuration` se renombro a
+`ActivePresentCacheDuration` (cambio de nombre deliberado, dentro del
+alcance: "Catalog" se elimina de toda la terminologia por pedido
+explicito). La clave de cache interna paso de
+`"ThemeCatalogService_ActiveCatalog"` a
+`"ThemePresentService_ActivePresent"`.
+
+### Componentes Razor
+
+- `ThemeFaviconAndLogoConfig.razor`: se elimino el parametro
+  `[Parameter] ThemeCatalog? SelectThemeCatalog` (favicon/logo ya no
+  estan acotados "al tema que se esta editando" — son globales). Como
+  consecuencia, el hook de ciclo de vida paso de `OnParametersSetAsync` a
+  `OnInitializedAsync` (ya no depende de un parametro externo que pueda
+  cambiar). `LoadFaviconAsync`/`LoadLogoAsync`/`SaveFaviconAsync`/
+  `SaveLogoAsync`/`ActivateFaviconAsync`/`ActivateLogoAsync` perdieron sus
+  guards de "seleccionar un tema primero" y el `ThemeCatalogId =
+  SelectThemeCatalog.Id` al construir un `ThemeAsset` nuevo.
+- `ThemePaletteSelector.razor`: se elimino el parametro
+  `[Parameter] EventCallback<ThemeCatalog> ThemeCatalogChanged` (y todos
+  sus sitios de invocacion) — era el unico consumidor de
+  `SelectThemeCatalog` arriba, y al desaparecer ese parametro el callback
+  queda sin ningun proposito. Renombres internos: `themesCatalog` →
+  `themePresents`, `themeCatalogActive` → `activeThemePresent`,
+  `isSavingThemeCatalog`/`isSavingActiveThemeCatalog` →
+  `isSavingThemePresent`/`isSavingActiveThemePresent`,
+  `GetThemesCatalog()` → `GetThemePresents()`, `AddThemesCatalog(...)` →
+  `AddThemePresent(...)`, `saveThemeCatalog()` → `saveThemePresent()`.
+- `ThemeConfig.razor`: al desaparecer el cableado
+  `SelectThemeCatalog`/`ThemeCatalogChanged` entre los dos componentes
+  anteriores, quedo como un wrapper puramente de composicion, sin
+  `@code`.
+
+### samples/TestHost
+
+- `Data/TestDbContext.cs`: se elimino `DbSet<ThemeCatalog> ThemeCatalogs`.
+- `Program.cs`: se elimino el bloque de SQL crudo
+  (`ExecuteSqlRawAsync("CREATE TABLE IF NOT EXISTS \"ThemeAssets\" ...
+  ThemeCatalogId ... FOREIGN KEY ...")`) que quedaba de una etapa
+  anterior — ya no aplica, `ThemeAsset` no tiene esa columna. El archivo
+  `themetesthost.db` local (esquema viejo) se elimino en esta sesion para
+  que `EnsureCreatedAsync()` genere el esquema nuevo correcto al proximo
+  arranque (`EnsureCreatedAsync()` no corrige un archivo ya existente).
+- `Components/Pages/Home.razor`: se reescribio para inyectar
+  `IThemePresentService`/`IThemeFaviconService`/`IThemeLogoService` en
+  vez de `IThemeCatalogService`/`IThemeLogoService`, leyendo
+  `_activePresent.Name` y llamando a
+  `GetCurrentFaviconPathAsync()`/`GetCurrentLogoPathAsync()`
+  directamente en vez de indexar `ThemeCatalog.ThemeAssets`.
+- **Ruta renombrada**: `ThemeCatalogPage.razor` (ruta `/ThemeCatalog`) se
+  elimino y se reemplazo por `ThemeAdministrationPage.razor` (ruta
+  `/administrar-tema`) — decision de alcance: el nombre/ruta viejos leian
+  como terminologia obsoleta despues de eliminar `ThemeCatalog` en todo
+  el resto del codigo. Se actualizo el link correspondiente en
+  `Components/Layout/MainLayout.razor`, `Components/Pages/Home.razor` y
+  `samples/TestHost/README.md`.
+
+### Base de datos y migraciones
+
+La libreria no trae migraciones propias (ver
+[docs/DBCONTEXT-AND-MIGRATIONS.md](docs/DBCONTEXT-AND-MIGRATIONS.md)).
+Para una app consumidora que ya tenia el esquema anterior (con
+`ThemeCatalog`) y datos reales, `dotnet ef migrations add` sobre el
+`DbContext` consumidor generara una migracion que debe, en este orden:
+
+1. Agregar las columnas `Name`, `IsBase`, `IsActive` a `ThemePresent`
+   (nullable o con default temporal, para poder poblarlas antes del
+   paso 2).
+2. Copiar `Name`, `IsBase`, `IsActive` desde `ThemeCatalog` hacia el
+   `ThemePresent` correspondiente, vinculando por
+   `ThemePresent.ThemeCatalogId == ThemeCatalog.Id` (la FK vieja, todavia
+   presente en este punto) — con SQL crudo dentro de la migracion
+   (`migrationBuilder.Sql(...)`) o un paso de datos equivalente.
+3. Marcar `ThemePresent.Name`/`IsBase`/`IsActive` como NOT NULL /sin
+   default una vez pobladas (si se usaron nullable/default en el paso 1).
+4. Eliminar la FK `ThemeAsset.ThemeCatalogId` → `ThemeCatalog.Id` y la
+   columna `ThemeAsset.ThemeCatalogId`.
+5. Eliminar la FK `ThemePresent.ThemeCatalogId` → `ThemeCatalog.Id` y la
+   columna `ThemePresent.ThemeCatalogId`.
+6. Eliminar la tabla `ThemeCatalog`.
+
+`ThemeAsset` y `ThemePresent` quedan como tablas independientes, sin
+ninguna FK entre si ni hacia ninguna tabla eliminada. Es responsabilidad
+de la app consumidora generar, revisar y aplicar esta migracion contra su
+propio `DbContext` — la libreria no la genera ni la aplica.
+
+### Decisiones de alcance (no son bugs, quedan documentadas)
+
+- **El namespace/carpeta `Entities/ThemeCatalog/` no se renombro.**
+  Sigue conteniendo `ThemePresent.cs`, `ThemeAsset.cs` y
+  `ThemeAssetType.cs` bajo ese nombre heredado de la etapa anterior del
+  proyecto. Renombrarlo habria significado tocar el `using` de practicamente
+  todos los archivos de la libreria y de `samples/TestHost` sin ningun
+  beneficio funcional — se considero fuera del alcance de este refactor
+  (que es sobre el modelo de datos, no sobre organizacion de carpetas).
+- **`IGenericRepository<T>.Query(...)` no se elimino**, aunque despues de
+  este refactor ningun codigo interno lo sigue llamando (su unico llamador,
+  `ThemeCatalogService.GetBaseAsync`, desaparecio junto con esa clase). Es
+  una capacidad generica del repositorio, agregada en una etapa anterior
+  para uso futuro de cualquier entidad — no es compatibilidad artificial
+  con `ThemeCatalog`, asi que quitarla seria una decision de arquitectura
+  aparte, fuera del alcance de este refactor.
+- **El parametro `IsSavingActiveThemeCatalog` del componente
+  `MudThemeManager`** (fork externo, submodulo git `External/
+  MudBlazor.ThemeManager`, repositorio separado
+  `SAMACDX/ThemeManager.git`) conserva ese nombre. No se modifico porque
+  ese codigo vive en otro repositorio git — cualquier cambio ahi no
+  formaria parte de este repositorio ni de este refactor.
+
+### Estado del build
+
+No fue posible compilar en esta sesion (sin `dotnet` CLI disponible, como
+en toda la migracion). Se verifico exhaustivamente por lectura completa
+de cada archivo reescrito y una bateria de busquedas de texto en toda la
+solucion (excluyendo `External/`, `bin/`, `obj/`, `.git/`) confirmando
+cero referencias remanentes a `ThemeCatalog`, `ThemeCatalogId`,
+`ThemeCatalogService`, `IThemeCatalogService`, `ThemeCatalogRepository`,
+`IThemeCatalogRepository`, `ThemeCatalogConfiguration`,
+`ThemeCatalogActivated`, `GetAllByThemeCatalogIdAsync`,
+`ActiveCatalogCacheDuration`, `SelectThemeCatalog`, `ThemeCatalogChanged`,
+`CreateWithThemePresentAsync` y `GetByThemeIdAsync`, salvo las
+excepciones documentadas arriba (namespace `Entities.ThemeCatalog` y el
+parametro del fork externo). Pendiente de que el usuario compile
+localmente (libreria + `samples/TestHost`) y confirme.

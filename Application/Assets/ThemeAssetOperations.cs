@@ -5,14 +5,14 @@ using SAMACDX.ThemeManager.Persistence.Interfaces.Services;
 namespace SAMACDX.ThemeManager.Persistence.Application.Assets
 {
     /// <summary>
-    /// Logica compartida entre ThemeFaviconService y ThemeLogoService (antes
-    /// duplicada casi identicamente en las dos clases): crear, listar y
-    /// activar un ThemeAsset de un ThemeAssetType dado, y resolver el asset
-    /// activo del catalogo ACTUALMENTE ACTIVO. Se usa por composicion (no por
-    /// herencia) para mantener IThemeFaviconService e IThemeLogoService como
-    /// interfaces publicas independientes, tal como se decidio explicitamente
-    /// en la etapa de consolidacion de ThemeAsset (los consumidores de alto
-    /// nivel no deben verse forzados a conocer ThemeAssetType).
+    /// Logica compartida entre ThemeFaviconService y ThemeLogoService: crear,
+    /// listar y activar un ThemeAsset de un ThemeAssetType dado, y resolver el
+    /// asset activo de ese tipo. ThemeAsset es un catalogo independiente (sin
+    /// relacion con ThemePresent ni ninguna otra entidad), asi que "activo"
+    /// es exclusivo dentro de cada ThemeAssetType, sin ningun otro alcance.
+    /// Se usa por composicion (no por herencia) para mantener
+    /// IThemeFaviconService e IThemeLogoService como interfaces publicas
+    /// independientes.
     /// </summary>
     internal sealed class ThemeAssetOperations
     {
@@ -36,9 +36,9 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Assets
             _allowedContentTypes = allowedContentTypes ?? Array.Empty<string>();
         }
 
-        public async Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id)
+        public async Task<List<ThemeAsset>> GetAllAsync()
         {
-            var assets = await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == id && t.Type == _type);
+            var assets = await _themeAssetRepository.FindAsync(t => t.Type == _type);
 
             return assets.ToList();
         }
@@ -58,9 +58,9 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Assets
             return await _themeAssetRepository.AddAsync(themeAsset);
         }
 
-        public async Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeAssetId)
+        public async Task<List<ThemeAsset>> ActivateAsync(int themeAssetId)
         {
-            var assets = (await _themeAssetRepository.FindAsync(t => t.ThemeCatalogId == themeCatalogId && t.Type == _type)).ToList();
+            var assets = (await _themeAssetRepository.FindAsync(t => t.Type == _type)).ToList();
 
             ExclusiveActivationHelper.ActivateOnly(assets, themeAssetId, t => t.Id, (t, active) => t.IsActive = active);
 
@@ -70,15 +70,13 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Assets
         }
 
         /// <summary>
-        /// Resuelve el asset activo (de este tipo) del catalogo ACTUALMENTE
-        /// ACTIVO (ThemeCatalog.IsActive == true) -- no de un catalogo
-        /// hardcodeado por id.
+        /// Resuelve el asset activo (de este tipo) -- ThemeAsset no tiene
+        /// ningun alcance ademas de su propio Type, asi que "activo" es
+        /// global para ese tipo.
         /// </summary>
         public async Task<string> GetCurrentPathAsync()
         {
-            var assets = await _themeAssetRepository.FindAsync(t => t.ThemeCatalog.IsActive && t.Type == _type);
-
-            var active = assets.FirstOrDefault(a => a.IsActive);
+            var active = await _themeAssetRepository.FirstOrDefaultAsync(t => t.Type == _type && t.IsActive);
 
             return active?.Path ?? string.Empty;
         }

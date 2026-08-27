@@ -34,16 +34,6 @@ using (var scope = app.Services.CreateScope())
     await using var db = await factory.CreateDbContextAsync();
 
     await db.Database.EnsureCreatedAsync();
-
-    await db.Database.ExecuteSqlRawAsync(@"CREATE TABLE IF NOT EXISTS ""ThemeAssets"" (
-        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ThemeAssets"" PRIMARY KEY AUTOINCREMENT,
-        ""Name"" TEXT NOT NULL,
-        ""Path"" TEXT NOT NULL,
-        ""Type"" INTEGER NOT NULL,
-        ""IsActive"" INTEGER NOT NULL,
-        ""ThemeCatalogId"" INTEGER NOT NULL,
-        CONSTRAINT ""FK_ThemeAssets_ThemeCatalogs_ThemeCatalogId"" FOREIGN KEY (""ThemeCatalogId"") REFERENCES ""ThemeCatalogs"" (""Id"") ON DELETE CASCADE
-    );");
 }
 
 app.UseAntiforgery();

@@ -2,11 +2,9 @@
 {
     /// <summary>
     /// Helper interno que centraliza el patron "dentro de un grupo, solo un
-    /// elemento puede estar activo a la vez", repetido de forma casi identica
-    /// en ThemeCatalogService.ActivateAsync, ThemeFaviconService.ActivateAsync
-    /// y ThemeLogoService.ActivateAsync antes de esta etapa. No cambia el
-    /// comportamiento de ninguno de los tres: solo evita que la logica de
-    /// "apagar todos, encender el elegido" viva por triplicado.
+    /// elemento puede estar activo a la vez", usado por
+    /// ThemePresentService.ActivateAsync y por ThemeAssetOperations.ActivateAsync
+    /// (compartido entre ThemeFaviconService y ThemeLogoService).
     /// </summary>
     internal static class ExclusiveActivationHelper
     {

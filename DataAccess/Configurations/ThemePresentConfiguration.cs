@@ -5,8 +5,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace SAMACDX.ThemeManager.Persistence.DataAccess.Configurations
 {
     /// <summary>
-    /// La relacion con ThemeCatalog se configura desde ThemeCatalogConfiguration
-    /// (lado "uno" de la relacion uno-a-uno) para no declararla dos veces.
+    /// El indice unico sobre Name se deja declarado con el atributo [Index]
+    /// directamente en la entidad (Entities/ThemeCatalog/ThemePresent.cs),
+    /// para no declararlo dos veces.
     /// </summary>
     public class ThemePresentConfiguration : IEntityTypeConfiguration<ThemePresent>
     {
@@ -14,6 +15,7 @@ namespace SAMACDX.ThemeManager.Persistence.DataAccess.Configurations
         {
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.Name).IsRequired();
             builder.Property(x => x.JsonData).IsRequired();
         }
     }

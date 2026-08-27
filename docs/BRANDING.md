@@ -12,18 +12,16 @@ public class ThemeAsset
     public string Path { get; set; }
     public ThemeAssetType Type { get; set; }   // Logo | Favicon
     public bool IsActive { get; set; }
-    public int ThemeCatalogId { get; set; }
-    public ThemeCatalog ThemeCatalog { get; set; }
 }
 ```
 
-Cada `ThemeAsset` pertenece a un `ThemeCatalog` (`ThemeCatalogId`). Dentro de un mismo catálogo, puede haber varios assets del mismo tipo (por ejemplo, varios logos subidos), pero solo **uno** puede tener `IsActive == true` por combinación `(ThemeCatalogId, Type)`.
+`ThemeAsset` **no tiene ninguna relación ni clave foránea con ningún tema (`ThemePresent`) ni con ninguna otra entidad**: es un catálogo de recursos completamente independiente, cuyo ciclo de vida evoluciona por su cuenta. Puede haber varios assets del mismo tipo (por ejemplo, varios logos subidos), pero solo **uno** puede tener `IsActive == true` por `Type` — esa exclusividad es global para toda la aplicación, no por tema.
 
 Aunque `IThemeFaviconService`/`IThemeLogoService` son interfaces separadas (para que el consumidor no tenga que conocer `ThemeAssetType` si no lo necesita), ambas operan sobre la misma tabla `ThemeAsset`, filtrando internamente por `Type`.
 
 ## "Branding" no es una API propia
 
-No existe un `IBrandingService` ni un método "obtener branding activo" único: **"Branding" es el nombre conceptual** que usa esta documentación (y la descripción del paquete NuGet) para referirse en conjunto a logo + favicon. Para consumir "el branding activo" hay que llamar a los dos métodos por separado (`GetCurrentLogoPathAsync()` y `GetCurrentFaviconPathAsync()`), o leerlos juntos desde `ThemeCatalog.ThemeAssets` (ver más abajo).
+No existe un `IBrandingService` ni un método "obtener branding activo" único: **"Branding" es el nombre conceptual** que usa esta documentación (y la descripción del paquete NuGet) para referirse en conjunto a logo + favicon. Para consumir "el branding activo" hay que llamar a los dos métodos por separado (`GetCurrentLogoPathAsync()` y `GetCurrentFaviconPathAsync()`).
 
 De la misma forma, **no existe un "Icono activo" separado del favicon**: en este modelo, el favicon *es* el ícono de la aplicación — no hay un `ThemeAssetType.Icon` adicional.
 
@@ -35,7 +33,7 @@ De la misma forma, **no existe un "Icono activo" separado del favicon**: en este
 string logoPath = await ThemeLogoService.GetCurrentLogoPathAsync();
 ```
 
-Resuelve el `ThemeAsset` de tipo `Logo`, `IsActive == true`, del catálogo **actualmente activo** (`ThemeCatalog.IsActive == true`) — no de un catálogo fijo. Devuelve cadena vacía si no hay ninguno.
+Resuelve el `ThemeAsset` de tipo `Logo`, `IsActive == true` — global para toda la aplicación, no ligado a ningún tema. Devuelve cadena vacía si no hay ninguno.
 
 ### Favicon activo
 
@@ -44,16 +42,6 @@ string faviconPath = await ThemeFaviconService.GetCurrentFaviconPathAsync();
 ```
 
 Misma lógica que el logo, filtrando por `Type == Favicon`.
-
-### Ambos a la vez, desde el tema activo
-
-Como `IThemeCatalogService.GetActiveAsync()` ya trae `ThemeAssets` cargados (filtrados a los `IsActive == true`), también se puede leer directamente:
-
-```csharp
-var activo = await ThemeCatalogService.GetActiveAsync();
-var logo = activo?.ThemeAssets?.FirstOrDefault(a => a.Type == ThemeAssetType.Logo)?.Path;
-var favicon = activo?.ThemeAssets?.FirstOrDefault(a => a.Type == ThemeAssetType.Favicon)?.Path;
-```
 
 ### Fallback cuando no hay ningún asset activo aún
 
@@ -70,8 +58,8 @@ string faviconFallback = ThemeDefaultAssets.DefaultFaviconPath;
 |---|---|---|
 | **Tema activo** | `Layout` raíz, enlazado al `MudThemeProvider` | Ver [THEMES.md](THEMES.md) y el ejemplo en [GETTING-STARTED.md](GETTING-STARTED.md). Se propaga en cascada a **todos** los componentes MudBlazor de la app — AppBar, Login, Dashboard, cualquier página — sin que cada uno tenga que leerlo por su cuenta. |
 | **Logo activo** | AppBar, pantalla de Login, Dashboard, o cualquier componente que necesite mostrar el logotipo de la organización | `<MudImage Src="@logoPath" />` con el valor de `GetCurrentLogoPathAsync()` (o el fallback si viene vacío). |
-| **Favicon activo** | `<head>` HTML del documento | El shell HTML estático (`App.razor` en Blazor Server) se renderiza una sola vez al inicio del circuito; para que el favicon refleje el catálogo activo, un componente que resuelva `GetCurrentFaviconPathAsync()` debe escribir el `<link rel="icon">` correspondiente usando el mecanismo de cabecera de Blazor (`HeadContent`/`PageTitle` de `Microsoft.AspNetCore.Components.Web`, capturado por el `<HeadOutlet>` en `App.razor`). La librería no hace esto automáticamente — expone la ruta, no un componente que la inyecte en el `<head>` (ver ejemplo en [GETTING-STARTED.md](GETTING-STARTED.md)). |
-| **Componentes que necesiten branding en general** | Cualquier página de la app | Inyectar `IThemeLogoService`/`IThemeFaviconService` (o leer `IThemeCatalogService.GetActiveAsync().ThemeAssets`) directamente donde se necesite; no hay un componente "wrapper" de branding en la librería más allá de `ThemeFaviconAndLogoConfig.razor`, que es de **administración**, no de solo-lectura (ver [ADMINISTRATION.md](ADMINISTRATION.md)). |
+| **Favicon activo** | `<head>` HTML del documento | El shell HTML estático (`App.razor` en Blazor Server) se renderiza una sola vez al inicio del circuito; para que el favicon refleje el recurso activo, un componente que resuelva `GetCurrentFaviconPathAsync()` debe escribir el `<link rel="icon">` correspondiente usando el mecanismo de cabecera de Blazor (`HeadContent`/`PageTitle` de `Microsoft.AspNetCore.Components.Web`, capturado por el `<HeadOutlet>` en `App.razor`). La librería no hace esto automáticamente — expone la ruta, no un componente que la inyecte en el `<head>` (ver ejemplo en [GETTING-STARTED.md](GETTING-STARTED.md)). |
+| **Componentes que necesiten branding en general** | Cualquier página de la app | Inyectar `IThemeLogoService`/`IThemeFaviconService` directamente donde se necesite; no hay un componente "wrapper" de branding en la librería más allá de `ThemeFaviconAndLogoConfig.razor`, que es de **administración**, no de solo-lectura (ver [ADMINISTRATION.md](ADMINISTRATION.md)). |
 
 ## Almacenamiento de archivos
 

@@ -1,28 +1,9 @@
-﻿@* Antes de esta etapa este componente declaraba @page "/ThemeCatalog" en forma
-   fija: cualquier app consumidora quedaba forzada a esa ruta exacta, sin
-   poder montarlo en otro path (o localizarlo, o coexistir con una ruta
-   propia igual). Ahora es un componente normal, sin ruta propia: el
-   consumidor decide donde montarlo, envolviendolo en su propia pagina con
-   el @page que prefiera. Ver samples/TestHost/Components/Pages/ThemeCatalogPage.razor
-   para el ejemplo (mantiene la misma ruta /ThemeCatalog que tenia antes). *@
-@using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
+﻿<MudPaper Elevation="0" Class="pt-4">
 
-<MudPaper Elevation="0" Class="pt-4">
+    <ThemeFaviconAndLogoConfig />
 
-    <ThemeFaviconAndLogoConfig SelectThemeCatalog="themeCatalog" />
-
-    <ThemePaletteSelector ThemeCatalogChanged="themeCatalogChanged" />
+    <ThemePaletteSelector />
 
     <ThemeTermConfig />
 
 </MudPaper>
-
-@code {
-
-    private ThemeCatalog? themeCatalog;
-
-    private void themeCatalogChanged(ThemeCatalog themeCatalogTemp)
-    {
-        themeCatalog = themeCatalogTemp;        
-    }
-}

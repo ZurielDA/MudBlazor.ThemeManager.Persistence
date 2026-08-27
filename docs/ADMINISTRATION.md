@@ -2,23 +2,15 @@
 
 Esta página distingue las operaciones de **administración** (crean, modifican o eliminan datos — típicamente detrás de una pantalla de configuración restringida) de las operaciones de **lectura/runtime** (consultadas por cualquier parte de la app en el camino normal de renderizado). Las de lectura/runtime están detalladas en [THEMES.md](THEMES.md) y [BRANDING.md](BRANDING.md); esta página se concentra en las de escritura.
 
-## Themes / catálogo de tema — `IThemeCatalogService`
+## Themes — `IThemePresentService`
 
 | Operación | Método | Notas |
 |---|---|---|
-| Crear | `CreateWithThemePresentAsync(ThemeCatalog, ThemePresent)` | Valida nombre no vacío y no duplicado (`ThemeValidationException`). Siempre crea un catálogo **nuevo** (no hay "editar en el lugar" — ver [THEMES.md](THEMES.md)). |
-| Activar | `ActivateAsync(int id)` | Exclusivo: desactiva todos los demás. Invalida la caché de `GetActiveAsync()`. Dispara `ThemeCatalogActivated`. |
-| Eliminar | `DeleteAsync(int id)` | Lanza `ThemeValidationException` si el catálogo es el base (`IsBase`) o el actualmente activo (`IsActive`). No hace nada (no lanza) si el `id` no existe. |
+| Crear | `CreateAsync(ThemePresent)` | Valida nombre no vacío y no duplicado (`ThemeValidationException`). Siempre crea un tema **nuevo** (no hay "editar en el lugar" — ver [THEMES.md](THEMES.md)). |
+| Activar | `ActivateAsync(int id)` | Exclusivo: desactiva todos los demás. Invalida la caché de `GetActiveAsync()`. Dispara `ThemePresentActivated`. |
+| Eliminar | `DeleteAsync(int id)` | Lanza `ThemeValidationException` si el tema es el base (`IsBase`) o el actualmente activo (`IsActive`). No hace nada (no lanza) si el `id` no existe. |
 
-No hay una operación de "editar el nombre" o "actualizar" un `ThemeCatalog` existente expuesta por el servicio — solo crear, activar y eliminar.
-
-## Configuración visual del tema — `IThemePresentService`
-
-| Operación | Método | Notas |
-|---|---|---|
-| Crear | `CreateAsync(ThemePresent)` | Normalmente no se llama sola: `ThemeCatalogService.CreateWithThemePresentAsync` la invoca internamente como parte de la creación de un catálogo. |
-
-No hay `UpdateAsync` — ver la observación correspondiente en [THEMES.md](THEMES.md) y en el README principal.
+No hay una operación de "editar el nombre" o "actualizar" un `ThemePresent` existente expuesta por el servicio — solo crear, activar y eliminar.
 
 ## Branding — `IThemeFaviconService` / `IThemeLogoService`
 
@@ -26,9 +18,9 @@ Misma forma para ambos (favicon y logo), solo cambia la interfaz:
 
 | Operación | Método | Notas |
 |---|---|---|
-| Listar por catálogo | `GetAllByThemeCatalogIdAsync(int themeCatalogId)` | Todos los assets de ese tipo para ese catálogo (activos e inactivos). |
+| Listar | `GetAllAsync()` | Todos los assets de ese tipo (activos e inactivos) — global, no filtrado por tema. |
 | Crear (subir) | `CreateAsync(ThemeAsset, ThemeAssetFileContent)` | Valida el tipo de contenido contra `AllowedAssetContentTypes` (`ThemeValidationException` si no está permitido). Guarda el archivo vía `IThemeFileStorageService.SaveFileAsync` y persiste el `ThemeAsset` con la ruta resultante. |
-| Activar | `ActivateAsync(int themeCatalogId, int themeAssetId)` | Exclusivo dentro de `(themeCatalogId, Type)`: desactiva los demás assets de ese tipo en ese catálogo, activa el indicado. |
+| Activar | `ActivateAsync(int themeAssetId)` | Exclusivo dentro del `Type` correspondiente: desactiva los demás assets de ese tipo, activa el indicado. Exclusividad global — no hay ningún alcance de tema. |
 | Eliminar | `DeleteAsync(int themeAssetId)` | Elimina la fila y llama a `IThemeFileStorageService.DeleteFileAsync` sobre su archivo físico. No hace nada si el `id` no existe (o no corresponde a ese tipo). |
 
 ## Terminología — `IThemeTermService` / `ITermService`

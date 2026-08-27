@@ -1,4 +1,4 @@
-# Test Host — cómo probar la librería
+﻿# Test Host — cómo probar la librería
 
 App Blazor Server mínima, dentro de este mismo repo, que consume
 `SAMACDX.MudBlazor.ThemeManager.Persistence` exactamente como lo haría
@@ -9,8 +9,8 @@ arnés de pruebas para verla funcionando sin depender de GDIP.
 
 Usa SQLite (un archivo local `themetesthost.db`, creado automáticamente)
 para no requerir SQL Server/LocalDB. Al iniciar, crea la base (si no
-existe) y siembra los datos por defecto del módulo Theme (mismo orden que
-usa GDIP: catálogo → present → términos → favicons → logos).
+existe) mediante `EnsureCreatedAsync()`; el tema activo por defecto lo
+determina la implementación actual sin necesitar datos sembrados.
 
 ## Cómo correrlo
 
@@ -28,14 +28,15 @@ como proyecto de inicio (F5).
 - **`/`** (Inicio): muestra el tema activo, el favicon/logo activos y el
   resultado de `IThemeLogoService.GetCurrentLogoPathAsync()` — confirma que
   la recuperación de configuración activa funciona.
-- **`/ThemeCatalog`** (Administrar Theme): la UI completa migrada de GDIP.
-  Ahí puedes:
-  - Ver los temas existentes y crear uno nuevo (nombre + configuración
-    visual con `MudThemeManager`).
+- **`/administrar-tema`** (Administrar Theme): la UI completa de
+  administración. Ahí puedes:
+  - Ver los temas existentes (`ThemePresent`) y crear uno nuevo (nombre +
+    configuración visual con `MudThemeManager`).
   - Activar un tema (comprueba persistencia + selección).
   - Subir y activar un favicon y un logo (comprueba `IThemeFileStorageService`
     — los archivos quedan en `wwwroot/Uploads/icons` y
-    `wwwroot/Uploads/logos`).
+    `wwwroot/Uploads/logos`). El favicon/logo activos son globales — no
+    pertenecen a ningún tema en particular.
   - Editar la terminología (tabla editable de `ThemeTerm`) y ver que se
     guarda al hacer clic fuera de la celda.
 - **Reiniciar la app** (`Ctrl+C` y volver a `dotnet run`): el tema/branding

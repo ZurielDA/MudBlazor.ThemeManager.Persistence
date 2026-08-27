@@ -23,13 +23,6 @@
                 Desde aquí puedes actualizar las imágenes principales y sus variaciones, asegurando una apariencia coherente en toda la interfaz de usuario.
             </MudText>
 
-            <MudText Typo="Typo.body2">
-                Al guardar un favicon o logotipo, estos se almacenarán dentro de la
-                <b>Configuración Visual</b> que tengas seleccionada en el
-                <b>Configurador de Tema Visual</b>.
-                Esto permite gestionar múltiples configuraciones y cambiar entre ellas fácilmente.
-            </MudText>
-
             <MudText Typo="Typo.caption" Color="Color.Secondary">
                 Recomendación: utiliza imágenes en formato <b>SVG</b> para obtener mejor calidad y escalabilidad en distintos dispositivos.
             </MudText>
@@ -170,9 +163,6 @@
 
 @code {
 
-    [Parameter]
-    public ThemeCatalog? SelectThemeCatalog { get; set; }
-
     /*
      * Seccion de favicon
      */
@@ -193,7 +183,7 @@
     private bool _isSavingThemeFavicon = false;
     private bool _isActivatingThemeFavicon = false;
 
-    protected async override Task OnParametersSetAsync()
+    protected async override Task OnInitializedAsync()
     {
         try
         {
@@ -208,22 +198,19 @@
 
     private async Task LoadFaviconAsync()
     {
-        if (SelectThemeCatalog?.Id != null)
-        {            
-            _themeFavicons = await ThemeFaviconService.GetAllByThemeCatalogIdAsync(SelectThemeCatalog.Id);
+        _themeFavicons = await ThemeFaviconService.GetAllAsync();
 
-            if (_themeFavicons.Count() > 0)
+        if (_themeFavicons.Count() > 0)
+        {
+            ThemeAsset themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
+
+            if(themeFaviconTemp != null)
             {
-                ThemeAsset themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
+                _faviconPreviewPath = themeFaviconTemp.Path;
+                _activeFaviconId = themeFaviconTemp.Id;
 
-                if(themeFaviconTemp != null)
-                {
-                    _faviconPreviewPath = themeFaviconTemp.Path;
-                    _activeFaviconId = themeFaviconTemp.Id;
-
-                    StateHasChanged();
-                }                
-            }
+                StateHasChanged();
+            }                
         }
     }
 
@@ -260,12 +247,6 @@
 
     private async Task SaveFaviconAsync()
     {
-        if (SelectThemeCatalog?.Id is null)
-        {
-            SnackbarService.Add("Selecciona un tema antes de guardar un favicon.", Severity.Warning);
-            return;
-        }
-
         if (_faviconFileBytes is null || _faviconFileName is null)
         {
             return;
@@ -283,7 +264,6 @@
 
             ThemeAsset newThemeFavicon = await ThemeFaviconService.CreateAsync(new ThemeAsset
             {
-                ThemeCatalogId = SelectThemeCatalog.Id,
                 Name = _faviconFileName
             },
                 content
@@ -344,16 +324,11 @@
 
     private async Task ActivateFaviconAsync()
     {
-        if (SelectThemeCatalog?.Id is null)
-        {
-            return;
-        }
-
         _isActivatingThemeFavicon = true;
 
         try
         {
-            _themeFavicons = await ThemeFaviconService.ActivateAsync(SelectThemeCatalog.Id, _activeFaviconId);
+            _themeFavicons = await ThemeFaviconService.ActivateAsync(_activeFaviconId);
 
             _hasSelectionChanged = false;
 
@@ -405,22 +380,19 @@
 
     private async Task LoadLogoAsync()
     {
-        if (SelectThemeCatalog?.Id != null)
+        _themeLogos = await ThemeLogoService.GetAllAsync();
+
+        if (_themeLogos.Count() > 0)
         {
-            _themeLogos = await ThemeLogoService.GetAllByThemeCatalogIdAsync(SelectThemeCatalog.Id);
+            ThemeAsset themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive)!;
 
-            if (_themeLogos.Count() > 0)
+            if (themeLogoTemp != null)
             {
-                ThemeAsset themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive)!;
+                _logoPreviewPath = themeLogoTemp.Path;
+                _activeLogoId = themeLogoTemp.Id;
 
-                if (themeLogoTemp != null)
-                {
-                    _logoPreviewPath = themeLogoTemp.Path;
-                    _activeLogoId = themeLogoTemp.Id;
-
-                    StateHasChanged();
-                }                
-            }
+                StateHasChanged();
+            }                
         }
     }
 
@@ -457,12 +429,6 @@
 
     private async Task SaveLogoAsync()
     {
-        if (SelectThemeCatalog?.Id is null)
-        {
-            SnackbarService.Add("Selecciona un tema antes de guardar un logo.", Severity.Warning);
-            return;
-        }
-
         if (_logoFileBytes is null || _logoFileName is null)
         {
             return;
@@ -480,7 +446,6 @@
 
             ThemeAsset newThemeLogo = await ThemeLogoService.CreateAsync(new ThemeAsset
             {
-                ThemeCatalogId = SelectThemeCatalog.Id,
                 Name = _logoFileName
             },
                 content
@@ -540,16 +505,11 @@
 
     private async Task ActivateLogoAsync()
     {
-        if (SelectThemeCatalog?.Id is null)
-        {
-            return;
-        }
-
         _isActivatingThemeLogo = true;
 
         try
         {
-            _themeLogos = await ThemeLogoService.ActivateAsync(SelectThemeCatalog.Id, _activeLogoId);
+            _themeLogos = await ThemeLogoService.ActivateAsync(_activeLogoId);
 
             _hasLogoSelectionChanged = false;
 

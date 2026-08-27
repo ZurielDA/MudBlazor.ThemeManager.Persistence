@@ -1,20 +1,21 @@
 ﻿@page "/"
-@inject IThemeCatalogService ThemeCatalogService
+@inject IThemePresentService ThemePresentService
+@inject IThemeFaviconService ThemeFaviconService
 @inject IThemeLogoService ThemeLogoService
 
 <MudPaper Class="pa-6">
     <MudText Typo="Typo.h4" Class="mb-4">Estado actual del módulo Theme</MudText>
 
-    @if (_activeCatalog is null)
+    @if (_activePresent is null)
     {
         <MudText>Cargando…</MudText>
     }
     else
     {
         <MudStack Spacing="2">
-            <MudText><b>Tema activo:</b> @_activeCatalog.Name</MudText>
-            <MudText><b>Favicon activo:</b> @(_activeCatalog.ThemeAssets?.FirstOrDefault(a => a.IsActive && a.Type == ThemeAssetType.Favicon)?.Path ?? "(ninguno)")</MudText>
-            <MudText><b>Logo activo:</b> @(_activeCatalog.ThemeAssets?.FirstOrDefault(a => a.IsActive && a.Type == ThemeAssetType.Logo)?.Path ?? "(ninguno)")</MudText>
+            <MudText><b>Tema activo:</b> @_activePresent.Name</MudText>
+            <MudText><b>Favicon activo:</b> @(_faviconPath ?? "(ninguno)")</MudText>
+            <MudText><b>Logo activo:</b> @(_logoPath ?? "(ninguno)")</MudText>
             <MudText><b>GetCurrentLogoPathAsync():</b> @(_logoPath ?? "(vacío)")</MudText>
         </MudStack>
 
@@ -24,18 +25,20 @@
         }
     }
 
-    <MudButton Href="/ThemeCatalog" Variant="Variant.Filled" Color="Color.Primary" Class="mt-6">
-        Ir al administrador de Theme (/ThemeCatalog)
+    <MudButton Href="/administrar-tema" Variant="Variant.Filled" Color="Color.Primary" Class="mt-6">
+        Ir al administrador de Theme (/administrar-tema)
     </MudButton>
 </MudPaper>
 
 @code {
-    private ThemeCatalog? _activeCatalog;
+    private ThemePresent? _activePresent;
+    private string? _faviconPath;
     private string? _logoPath;
 
     protected override async Task OnInitializedAsync()
     {
-        _activeCatalog = await ThemeCatalogService.GetActiveAsync();
+        _activePresent = await ThemePresentService.GetActiveAsync();
+        _faviconPath = await ThemeFaviconService.GetCurrentFaviconPathAsync();
         _logoPath = await ThemeLogoService.GetCurrentLogoPathAsync();
     }
 }

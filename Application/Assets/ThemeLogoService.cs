@@ -20,11 +20,11 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Assets
                 options.AllowedAssetContentTypes);
         }
 
-        public Task<List<ThemeAsset>> GetAllByThemeCatalogIdAsync(int id) => _operations.GetAllByThemeCatalogIdAsync(id);
+        public Task<List<ThemeAsset>> GetAllAsync() => _operations.GetAllAsync();
 
         public Task<ThemeAsset> CreateAsync(ThemeAsset themeLogo, ThemeAssetFileContent file) => _operations.CreateAsync(themeLogo, file);
 
-        public Task<List<ThemeAsset>> ActivateAsync(int themeCatalogId, int themeLogoId) => _operations.ActivateAsync(themeCatalogId, themeLogoId);
+        public Task<List<ThemeAsset>> ActivateAsync(int themeLogoId) => _operations.ActivateAsync(themeLogoId);
 
         public Task<string> GetCurrentLogoPathAsync() => _operations.GetCurrentPathAsync();
 

@@ -19,11 +19,13 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
     /// La aplicacion consumidora debe:
     ///   1. Llamar a services.AddThemeManagerPersistence&lt;TContext&gt;() indicando su
     ///      propio DbContext (TContext), que debe exponer DbSet&lt;T&gt; (vía Set&lt;T&gt;())
-    ///      para ThemeCatalog, ThemeAsset, ThemePresent y ThemeTerm
+    ///      para ThemePresent, ThemeAsset y ThemeTerm
     ///      (Entities/ThemeCatalog/* y Entities/Theme/ThemeTerm). Ver tambien
     ///      ModelBuilderExtensions.ApplyThemeManagerPersistenceModel() para
-    ///      aplicar el modelo EF Core de estas 4 entidades explicitamente
-    ///      desde el OnModelCreating de ese DbContext.
+    ///      aplicar el modelo EF Core de estas 3 entidades explicitamente
+    ///      desde el OnModelCreating de ese DbContext. ThemePresent y
+    ///      ThemeAsset son catalogos independientes, sin ninguna relacion
+    ///      entre si.
     ///   2. Registrar su propia implementacion de IThemeFileStorageService (tipicamente
     ///      agregando esa interfaz a su servicio de almacenamiento de archivos existente),
     ///      o usar la implementacion opcional que trae la libreria via
@@ -60,10 +62,6 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
             // también deja TContext resolvible como scoped). Por eso aquí se resuelve
             // explícitamente: se prefiere la factory cuando está registrada, y si no, se
             // cae al TContext externo.
-            services.TryAddScoped<IThemeCatalogRepository>(sp =>
-                CreateRepository<ThemeCatalogRepository<TContext>, TContext>(sp,
-                    f => new ThemeCatalogRepository<TContext>(f),
-                    c => new ThemeCatalogRepository<TContext>(c)));
             services.TryAddScoped<IThemeAssetRepository>(sp =>
                 CreateRepository<ThemeAssetRepository<TContext>, TContext>(sp,
                     f => new ThemeAssetRepository<TContext>(f),
@@ -78,7 +76,6 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
                     c => new ThemeTermRepository<TContext>(c)));
 
             services.TryAddScoped<IThemeManagerService, ThemeManagerService>();
-            services.TryAddScoped<IThemeCatalogService, ThemeCatalogService>();
             services.TryAddScoped<IThemePresentService, ThemePresentService>();
             services.TryAddScoped<IThemeTermService, ThemeTermService>();
             services.TryAddScoped<IThemeFaviconService, ThemeFaviconService>();
