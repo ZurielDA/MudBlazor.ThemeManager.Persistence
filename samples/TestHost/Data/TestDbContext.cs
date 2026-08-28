@@ -20,6 +20,8 @@ namespace SAMACDX.ThemeManager.Persistence.TestHost.Data
 
         public DbSet<ThemePresent> ThemesPresent => Set<ThemePresent>();
 
+        public DbSet<AppName> AppNames => Set<AppName>();
+
         public DbSet<ThemeTerm> ThemeTerms => Set<ThemeTerm>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

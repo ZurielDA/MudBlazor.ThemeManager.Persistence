@@ -18,14 +18,15 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
     public static class ModelBuilderExtensions
     {
         /// <summary>
-        /// Aplica las IEntityTypeConfiguration&lt;T&gt; de las 2 entidades de este
-        /// modulo (ThemePresent, ThemeAsset). Independientes entre si: no hay
-        /// ninguna relacion que declarar entre ellas.
+        /// Aplica las IEntityTypeConfiguration&lt;T&gt; de las 3 entidades de este
+        /// modulo (ThemePresent, ThemeAsset, AppName). Independientes entre si:
+        /// no hay ninguna relacion que declarar entre ellas.
         /// </summary>
         public static ModelBuilder ApplyThemeManagerPersistenceModel(this ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyConfiguration(new ThemePresentConfiguration());
             modelBuilder.ApplyConfiguration(new ThemeAssetConfiguration());
+            modelBuilder.ApplyConfiguration(new AppNameConfiguration());
 
             return modelBuilder;
         }

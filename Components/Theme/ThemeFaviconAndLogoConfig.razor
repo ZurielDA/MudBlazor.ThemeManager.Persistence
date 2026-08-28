@@ -9,6 +9,7 @@
 
 @inject IThemeFaviconService ThemeFaviconService;
 @inject IThemeLogoService ThemeLogoService;
+@inject IAppNameService AppNameService;
 @inject ThemeManagerPersistenceOptions Options
 @inject ISnackbar SnackbarService
 @inject IDialogService DialogService
@@ -19,10 +20,10 @@
         @* Columna informativa *@
         <MudItem xs="12" md="3">
             <MudStack Spacing="2">
-                <MudText Typo="Typo.subtitle1"><b>Favicon y logotipo</b></MudText>
+                <MudText Typo="Typo.subtitle1"><b>Favicon, logotipo y nombre</b></MudText>
 
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    Personaliza el favicon y logotipos de la plataforma para alinear la identidad visual con la de tu institución o marca.
+                    Personaliza el favicon, logotipo y nombre de la plataforma para alinear la identidad visual con la de tu institución o marca.
                 </MudText>
 
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -38,8 +39,52 @@
         @* Tarjetas de Favicon y Logo *@
         <MudItem xs="12" md="9">
             <MudGrid Spacing="4">
+                @* Sección de Nombre de la aplicación *@
+                <MudItem xs="12" sm="6" md="4" Class="d-flex">
+                    <MudCard Outlined="true" Class="d-flex flex-column" Style="width:100%;">
+                        <MudCardHeader Class="pb-0">
+                            <CardHeaderContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.subtitle1"><b>Nombre de la aplicación</b></MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="@(IsNewAppName ? Color.Warning : _hasAppNameSelectionChanged ? Color.Warning : Color.Success)">
+                                        @(IsNewAppName ? "Sin guardar" : _hasAppNameSelectionChanged ? "Selección sin activar" : "Activo")
+                                    </MudChip>
+                                </MudStack>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent Class="flex-grow-1">
+                            <MudStack Spacing="3">
+                                <MudAutocomplete T="string"
+                                                  @bind-Value="_appNameInput"
+                                                  Label="Nombre de la aplicación"
+                                                  Dense="true"
+                                                  Margin="Margin.Dense"
+                                                  Clearable="true"
+                                                  CoerceText="true"
+                                                  CoerceValue="true"
+                                                  ResetValueOnEmptyText="false"
+                                                  SearchFunc="@SearchAppNames"
+                                                  HelperText="@(IsNewAppName ? "Nombre nuevo -- se guardará al usarlo." : null)" />
+                            </MudStack>
+                        </MudCardContent>
+                        <MudCardActions Class="px-4 pb-3 pt-0">
+                            <MudButton Disabled="!CanSubmitAppName || _isSubmittingAppName" Variant="Variant.Filled" StartIcon="@(IsNewAppName ? Icons.Material.Filled.Save : Icons.Material.Filled.Check)" OnClick="SubmitAppNameAsync" Size="Size.Small" Color="Color.Primary">
+                                @if (_isSubmittingAppName)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">@(IsNewAppName ? "Guardando" : "Activando")</MudText>
+                                }
+                                else
+                                {
+                                    <MudText>@(IsNewAppName ? "Guardar y usar" : "Activar")</MudText>
+                                }
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+                @* -- *@
                 @* Sección de Favicon *@
-                <MudItem xs="12" sm="6">
+                <MudItem xs="12" sm="6" md="4">
                     <MudCard Outlined="true">
                         <MudCardHeader Class="pb-0">
                             <CardHeaderContent>
@@ -101,7 +146,7 @@
                 @* -- *@
 
                 @* Sección de Logotipo *@
-                <MudItem xs="12" sm="6">
+                <MudItem xs="12" sm="6" md="4">
                     <MudCard Outlined="true">
                         <MudCardHeader Class="pb-0">
                             <CardHeaderContent>
@@ -159,8 +204,7 @@
                             </MudButton>
                         </MudCardActions>
                     </MudCard>
-                </MudItem>
-                @* -- *@
+                </MudItem>                
             </MudGrid>
         </MudItem>
     </MudGrid>
@@ -291,6 +335,7 @@
         {
             await LoadFaviconAsync();
             await LoadLogoAsync();
+            await LoadAppNameAsync();
             await GetThemePresents();
         }
         catch (Exception)
@@ -545,6 +590,105 @@
         finally
         {
             _isActivatingThemeLogo = false;
+        }
+    }
+
+    /*
+     * 
+     */
+
+    /*
+     * Seccion de Nombre de la aplicacion
+     */
+
+    private List<AppName> _appNames = new List<AppName>();
+    private string? _currentAppName;
+    private string _appNameInput = string.Empty;
+
+    private bool _isSubmittingAppName = false;
+
+    // Autocomplete unico: si el texto ingresado coincide (sin distinguir
+    // mayusculas/minusculas) con un nombre ya guardado, se trata como una
+    // seleccion del historial; si no coincide con ninguno, se trata como un
+    // nombre nuevo a crear. Un solo campo y un solo boton adaptable cubren
+    // ambos casos (crear+activar, o solo activar).
+    private AppName? MatchedAppName =>
+        _appNames.FirstOrDefault(a => string.Equals(a.Name, _appNameInput?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private bool IsNewAppName => !string.IsNullOrWhiteSpace(_appNameInput) && MatchedAppName is null;
+
+    private bool _hasAppNameSelectionChanged =>
+        MatchedAppName is not null && !string.Equals(_appNameInput?.Trim(), _currentAppName, StringComparison.OrdinalIgnoreCase);
+
+    private bool CanSubmitAppName =>
+        !string.IsNullOrWhiteSpace(_appNameInput) && !string.Equals(_appNameInput.Trim(), _currentAppName, StringComparison.OrdinalIgnoreCase);
+
+    private async Task LoadAppNameAsync()
+    {
+        _appNames = await AppNameService.GetAllAsync();
+
+        var active = _appNames.FirstOrDefault(a => a.IsActive);
+
+        if (active is not null)
+        {
+            _currentAppName = active.Name;
+            _appNameInput = active.Name;
+        }
+    }
+
+    private Task<IEnumerable<string>> SearchAppNames(string value, CancellationToken cancellationToken)
+    {
+        IEnumerable<string> names = _appNames.Select(a => a.Name);
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            names = names.Where(n => n.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult(names);
+    }
+
+    private async Task SubmitAppNameAsync()
+    {
+        var input = _appNameInput?.Trim();
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return;
+        }
+
+        _isSubmittingAppName = true;
+
+        try
+        {
+            var target = MatchedAppName;
+            var wasNew = target is null;
+
+            if (wasNew)
+            {
+                target = await AppNameService.CreateAsync(new AppName { Name = input });
+            }
+
+            _appNames = await AppNameService.ActivateAsync(target!.Id);
+
+            _currentAppName = target.Name;
+            _appNameInput = target.Name;
+
+            ShowSuccessMessage(wasNew
+                ? "Se guardó y activó el nombre de la aplicación."
+                : "Se activó el nombre de la aplicación.");
+        }
+        catch (ThemeValidationException ex)
+        {
+            SnackbarService.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo guardar el nombre de la aplicación. Intenta nuevamente.", Severity.Error);
+        }
+        finally
+        {
+            _isSubmittingAppName = false;
         }
     }
 

@@ -14,6 +14,7 @@ Esta librería se encarga de **persistir, recuperar y activar** configuraciones 
 - [Configuración](#configuración)
 - [Integración con DbContext](#integración-con-dbcontext)
 - [Dependency Injection](#dependency-injection)
+- [Nombre de la aplicación](#nombre-de-la-aplicación)
 - [Migraciones](#migraciones)
 - [Documentación adicional](#documentación-adicional)
 - [Ejemplo mínimo](#ejemplo-mínimo)
@@ -21,11 +22,12 @@ Esta librería se encarga de **persistir, recuperar y activar** configuraciones 
 
 ## Introducción
 
-`SAMACDX.ThemeManager.Persistence` (paquete/ensamblado `SAMACDX.MudBlazor.ThemeManager.Persistence`) resuelve tres problemas para una aplicación Blazor Server con MudBlazor:
+`SAMACDX.ThemeManager.Persistence` (paquete/ensamblado `SAMACDX.MudBlazor.ThemeManager.Persistence`) resuelve cuatro problemas para una aplicación Blazor Server con MudBlazor:
 
 1. **Persistir** configuraciones de tema visual (paleta, tipografía, elevaciones, radios de borde) editadas con el componente `MudThemeManager` del fork `MudBlazor.ThemeManager`, como filas de base de datos versionables (`ThemePresent`, con nombre propio).
 2. **Activar** un tema como el vigente para toda la aplicación, y recuperarlo de forma consistente (incluso después de reiniciar la aplicación).
 3. **Administrar branding** (logo y favicon) de la aplicación, como recursos independientes (`ThemeAsset`, sin relación con ningún tema en particular), con almacenamiento de archivos desacoplado (la librería no impone dónde ni cómo se guardan los archivos).
+4. **Administrar el nombre de la aplicación**, con un historial de los nombres utilizados (`AppName`) para poder reactivar cualquiera de ellos más adelante — también independiente de cualquier tema o asset.
 
 La librería **no reemplaza** a `MudBlazor.ThemeManager`: lo complementa. `MudBlazor.ThemeManager` sigue siendo responsable exclusivo del editor visual y de la estructura del objeto de tema (`ThemeManagerTheme`); esta librería solo sabe guardarlo, recuperarlo y activarlo.
 
@@ -36,7 +38,7 @@ Tres piezas con responsabilidades disjuntas:
 | Proyecto | Responsabilidad |
 |---|---|
 | `MudBlazor.ThemeManager` (fork, submódulo git) | Editor visual de tema (`MudThemeManager`), estructura en memoria del tema (`ThemeManagerTheme`), integración con la paleta de MudBlazor. Sin ningún concepto de base de datos ni de "tema guardado". |
-| `SAMACDX.ThemeManager.Persistence` (esta librería) | Persistencia, recuperación y activación de temas (`ThemePresent`); administración de branding (`ThemeAsset`: logo/favicon, independiente de cualquier tema); integración con Entity Framework Core; servicios de aplicación; componentes Razor reutilizables para administrar todo lo anterior. |
+| `SAMACDX.ThemeManager.Persistence` (esta librería) | Persistencia, recuperación y activación de temas (`ThemePresent`); administración de branding (`ThemeAsset`: logo/favicon, independiente de cualquier tema); administración del nombre de la aplicación con historial (`AppName`); integración con Entity Framework Core; servicios de aplicación; componentes Razor reutilizables para administrar todo lo anterior. |
 | Proyecto consumidor | Su propio `DbContext` (exponiendo el modelo de esta librería); su propia implementación de almacenamiento de archivos (`IThemeFileStorageService`, o la opcional que trae la librería); integración con su `Layout`/`MudThemeProvider`/`AppBar`; consumo de los recursos activos (tema, logo, favicon) donde su UI lo necesite. |
 
 El detalle completo de responsabilidades, el inventario de la API pública (servicios, interfaces, DTOs, entidades, extensiones de DI, componentes, eventos, recursos estáticos) y el mapa `MudBlazor.ThemeManager` ↔ `SAMACDX.ThemeManager.Persistence` están en **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
@@ -88,7 +90,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 }
 ```
 
-Esto aplica las 2 configuraciones de EF Core (`IEntityTypeConfiguration<T>`) que trae la librería para `ThemePresent` y `ThemeAsset` (más `ThemeTermConfiguration` para `ThemeTerm`, que no forma parte de este módulo de tema/branding pero se registra junto con el resto). `ThemePresent` y `ThemeAsset` son tablas completamente independientes: no hay ninguna relación ni clave foránea entre ellas. Declarar `DbSet<T>` para estas entidades en el `DbContext` consumidor es opcional (EF Core las incluye en el modelo igual, por `ApplyConfiguration`), pero se recomienda para que las herramientas de migraciones (`dotnet ef migrations add`) las detecten de forma explícita y para poder consultarlas directamente si la app lo necesita.
+Esto aplica las 3 configuraciones de EF Core (`IEntityTypeConfiguration<T>`) que trae la librería para `ThemePresent`, `ThemeAsset` y `AppName` (más `ThemeTermConfiguration` para `ThemeTerm`, que no forma parte de este módulo de tema/branding pero se registra junto con el resto). `ThemePresent`, `ThemeAsset` y `AppName` son tablas completamente independientes: no hay ninguna relación ni clave foránea entre ellas. Declarar `DbSet<T>` para estas entidades en el `DbContext` consumidor es opcional (EF Core las incluye en el modelo igual, por `ApplyConfiguration`), pero se recomienda para que las herramientas de migraciones (`dotnet ef migrations add`) las detecten de forma explícita y para poder consultarlas directamente si la app lo necesita.
 
 Detalle completo (qué debe proveer la app, qué resuelve la librería internamente, y una diferencia de comportamiento importante entre registrar `AddDbContextFactory<TContext>()` vs `AddDbContext<TContext>()`) en **[docs/INSTALLATION-AND-CONFIGURATION.md](docs/INSTALLATION-AND-CONFIGURATION.md)**.
 
@@ -96,12 +98,37 @@ Detalle completo (qué debe proveer la app, qué resuelve la librería intername
 
 Un único punto de entrada, `services.AddThemeManagerPersistence<TContext>(configureOptions)`, registra:
 
-- Los 3 repositorios (`IThemeAssetRepository`, `IThemePresentRepository`, `IThemeTermRepository`) — capa de persistencia interna; el consumidor normalmente no los usa directamente (ver ARCHITECTURE.md).
-- Los servicios de aplicación públicos: `IThemePresentService`, `IThemeFaviconService`, `IThemeLogoService`, `IThemeTermService`, `ITermService`, `IThemeManagerService`.
+- Los 4 repositorios (`IThemeAssetRepository`, `IThemePresentRepository`, `IThemeTermRepository`, `IAppNameRepository`) — capa de persistencia interna; el consumidor normalmente no los usa directamente (ver ARCHITECTURE.md).
+- Los servicios de aplicación públicos: `IThemePresentService`, `IThemeFaviconService`, `IThemeLogoService`, `IThemeTermService`, `ITermService`, `IThemeManagerService`, `IAppNameService`.
 - `IMemoryCache` (si no estaba ya registrada).
 - `ThemeManagerPersistenceOptions` como singleton.
 
 Todos los registros usan `TryAddScoped`/`TryAddSingleton`: el consumidor puede reemplazar cualquier pieza (por ejemplo, su propio `ITermService`) registrándola antes o después de llamar a `AddThemeManagerPersistence`, sin depender de un orden implícito. `AddThemeManagerPersistenceLocalFileStorage()` es un método aparte y opcional para `IThemeFileStorageService` (no se activa automáticamente).
+
+## Nombre de la aplicación
+
+`IAppNameService` administra el nombre de la aplicación (`AppName`) con historial: cada nombre creado queda guardado, y cualquiera puede reactivarse más adelante sin perder los anteriores. Es un recurso independiente, sin relación con ningún tema ni con `ThemeAsset` (logo/favicon).
+
+```csharp
+@inject IAppNameService AppNameService
+
+// Historial completo
+List<AppName> historial = await AppNameService.GetAllAsync();
+
+// Agregar un nombre nuevo al historial y activarlo
+AppName nuevo = await AppNameService.CreateAsync(new AppName { Name = "Nuevo nombre" });
+await AppNameService.ActivateAsync(nuevo.Id);
+
+// Reactivar un nombre existente del historial
+await AppNameService.ActivateAsync(idDeUnNombreAnterior);
+
+// Nombre actualmente activo
+string nombreActivo = await AppNameService.GetCurrentNameAsync();
+```
+
+`CreateAsync` valida que el nombre no esté vacío ni duplicado en el historial (lanza `ThemeValidationException` en ambos casos) y no lo activa automáticamente — hay que llamar a `ActivateAsync` con el `Id` devuelto. Solo un nombre puede estar activo a la vez (mismo patrón de activación exclusiva que `ThemePresent`/`ThemeAsset`).
+
+La pestaña **Identidad** del componente `ThemeConfig` (dentro de `ThemeFaviconAndLogoConfig.razor`, junto al favicon y el logotipo) ya trae la UI de administración: crear y activar un nombre nuevo, o seleccionar y reactivar cualquiera del historial.
 
 ## Migraciones
 

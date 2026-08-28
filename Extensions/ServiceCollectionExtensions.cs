@@ -19,13 +19,13 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
     /// La aplicacion consumidora debe:
     ///   1. Llamar a services.AddThemeManagerPersistence&lt;TContext&gt;() indicando su
     ///      propio DbContext (TContext), que debe exponer DbSet&lt;T&gt; (vía Set&lt;T&gt;())
-    ///      para ThemePresent, ThemeAsset y ThemeTerm
+    ///      para ThemePresent, ThemeAsset, AppName y ThemeTerm
     ///      (Entities/ThemeCatalog/* y Entities/Theme/ThemeTerm). Ver tambien
     ///      ModelBuilderExtensions.ApplyThemeManagerPersistenceModel() para
-    ///      aplicar el modelo EF Core de estas 3 entidades explicitamente
-    ///      desde el OnModelCreating de ese DbContext. ThemePresent y
-    ///      ThemeAsset son catalogos independientes, sin ninguna relacion
-    ///      entre si.
+    ///      aplicar el modelo EF Core de estas 4 entidades explicitamente
+    ///      desde el OnModelCreating de ese DbContext. ThemePresent,
+    ///      ThemeAsset y AppName son catalogos independientes, sin ninguna
+    ///      relacion entre si.
     ///   2. Registrar su propia implementacion de IThemeFileStorageService (tipicamente
     ///      agregando esa interfaz a su servicio de almacenamiento de archivos existente),
     ///      o usar la implementacion opcional que trae la libreria via
@@ -74,12 +74,17 @@ namespace SAMACDX.ThemeManager.Persistence.Extensions
                 CreateRepository<ThemeTermRepository<TContext>, TContext>(sp,
                     f => new ThemeTermRepository<TContext>(f),
                     c => new ThemeTermRepository<TContext>(c)));
+            services.TryAddScoped<IAppNameRepository>(sp =>
+                CreateRepository<AppNameRepository<TContext>, TContext>(sp,
+                    f => new AppNameRepository<TContext>(f),
+                    c => new AppNameRepository<TContext>(c)));
 
             services.TryAddScoped<IThemeManagerService, ThemeManagerService>();
             services.TryAddScoped<IThemePresentService, ThemePresentService>();
             services.TryAddScoped<IThemeTermService, ThemeTermService>();
             services.TryAddScoped<IThemeFaviconService, ThemeFaviconService>();
             services.TryAddScoped<IThemeLogoService, ThemeLogoService>();
+            services.TryAddScoped<IAppNameService, AppNameService>();
             services.TryAddScoped<ITermService, TermService>();
 
             return services;
