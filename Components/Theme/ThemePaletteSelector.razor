@@ -143,6 +143,8 @@
         }
 
         StateHasChanged();
+
+        SnackbarService.Add("Tema activado exitosamente.", Severity.Success);
     }
 
     private async Task GetThemePresents()
