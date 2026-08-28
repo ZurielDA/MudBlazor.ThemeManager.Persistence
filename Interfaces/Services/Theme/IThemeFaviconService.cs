@@ -12,8 +12,11 @@ namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
         Task<List<ThemeAsset>> ActivateAsync(int themeFaviconId);
 
         /// <summary>
-        /// Ruta del favicon actualmente activo, o cadena vacia si no hay
-        /// ninguno.
+        /// Ruta del favicon actualmente activo. Si no hay ninguno (o ningun
+        /// ThemeAsset de tipo Favicon en absoluto), devuelve el favicon por
+        /// defecto de la libreria (StaticAssets.ThemeDefaultAssets.
+        /// DefaultFaviconPath) en vez de una cadena vacia -- el llamador no
+        /// necesita conocer ni resolver ese fallback por su cuenta.
         /// </summary>
         Task<string> GetCurrentFaviconPathAsync();
 

@@ -12,8 +12,11 @@ namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
         Task<List<ThemeAsset>> ActivateAsync(int themeLogoId);
 
         /// <summary>
-        /// Ruta del logo actualmente activo, o cadena vacia si no hay
-        /// ninguno.
+        /// Ruta del logo actualmente activo. Si no hay ninguno (o ningun
+        /// ThemeAsset de tipo Logo en absoluto), devuelve el logo por
+        /// defecto de la libreria (StaticAssets.ThemeDefaultAssets.
+        /// DefaultLogoPath) en vez de una cadena vacia -- el llamador no
+        /// necesita conocer ni resolver ese fallback por su cuenta.
         /// </summary>
         Task<string> GetCurrentLogoPathAsync();
 

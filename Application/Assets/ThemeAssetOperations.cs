@@ -21,19 +21,22 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Assets
         private readonly ThemeAssetType _type;
         private readonly string _uploadFolder;
         private readonly string[] _allowedContentTypes;
+        private readonly string _defaultPath;
 
         public ThemeAssetOperations(
             IThemeAssetRepository themeAssetRepository,
             IThemeFileStorageService fileStorageService,
             ThemeAssetType type,
             string uploadFolder,
-            string[] allowedContentTypes)
+            string[] allowedContentTypes,
+            string defaultPath)
         {
             _themeAssetRepository = themeAssetRepository;
             _fileStorageService = fileStorageService;
             _type = type;
             _uploadFolder = uploadFolder;
             _allowedContentTypes = allowedContentTypes ?? Array.Empty<string>();
+            _defaultPath = defaultPath ?? string.Empty;
         }
 
         public async Task<List<ThemeAsset>> GetAllAsync()
@@ -72,13 +75,18 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Assets
         /// <summary>
         /// Resuelve el asset activo (de este tipo) -- ThemeAsset no tiene
         /// ningun alcance ademas de su propio Type, asi que "activo" es
-        /// global para ese tipo.
+        /// global para ese tipo. Si no hay ningun ThemeAsset activo (o
+        /// ninguno en absoluto) devuelve el asset por defecto de la libreria
+        /// (defaultPath, resuelto por el llamador via StaticAssets.
+        /// ThemeDefaultAssets) en vez de una cadena vacia -- este es el unico
+        /// punto donde se decide ese fallback, para que ningun consumidor
+        /// (componentes incluidos) tenga que conocer ThemeDefaultAssets.
         /// </summary>
         public async Task<string> GetCurrentPathAsync()
         {
             var active = await _themeAssetRepository.FirstOrDefaultAsync(t => t.Type == _type && t.IsActive);
 
-            return active?.Path ?? string.Empty;
+            return active?.Path ?? _defaultPath;
         }
 
         public async Task DeleteAsync(int themeAssetId)

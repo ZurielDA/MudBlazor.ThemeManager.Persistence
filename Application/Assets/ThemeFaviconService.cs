@@ -3,6 +3,7 @@ using SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme;
 using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog;
 using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
 using SAMACDX.ThemeManager.Persistence.Extensions;
+using SAMACDX.ThemeManager.Persistence.StaticAssets;
 
 namespace SAMACDX.ThemeManager.Persistence.Application.Assets
 {
@@ -17,7 +18,8 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Assets
                 fileStorageService,
                 ThemeAssetType.Favicon,
                 options.FaviconUploadFolder,
-                options.AllowedAssetContentTypes);
+                options.AllowedAssetContentTypes,
+                ThemeDefaultAssets.DefaultFaviconPath);
         }
 
         public Task<List<ThemeAsset>> GetAllAsync() => _operations.GetAllAsync();

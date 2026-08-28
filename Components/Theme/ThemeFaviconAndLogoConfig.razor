@@ -3,7 +3,6 @@
 @using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
 @using SAMACDX.ThemeManager.Persistence.Application
 @using SAMACDX.ThemeManager.Persistence.Extensions
-@using SAMACDX.ThemeManager.Persistence.StaticAssets
 @using SAMACDX.ThemeManager.Persistence.Utilities
 @using System.Text.Json
 
@@ -286,7 +285,7 @@
     private string? _faviconFileName;
     private string? _faviconContentType;
 
-    private string _faviconPreviewPath  = ThemeDefaultAssets.DefaultFaviconPath;
+    private string _faviconPreviewPath = string.Empty;
     private int _activeFaviconId;
 
     private bool _hasSelectionChanged = false;
@@ -348,18 +347,11 @@
     {
         _themeFavicons = await ThemeFaviconService.GetAllAsync();
 
-        if (_themeFavicons.Count > 0)
-        {
-            var themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
-
-            if (themeFaviconTemp is not null)
-            {
-                _faviconPreviewPath = themeFaviconTemp.Path;
-                _activeFaviconId = themeFaviconTemp.Id;
-
-                StateHasChanged();
-            }                
-        }
+        // El servicio resuelve el activo, y si no hay ninguno, el favicon
+        // por defecto de la libreria -- este componente no conoce ni asigna
+        // ese fallback por su cuenta.
+        _faviconPreviewPath = await ThemeFaviconService.GetCurrentFaviconPathAsync();
+        _activeFaviconId = _themeFavicons.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
     }
 
     private async Task UploadFiles(InputFileChangeEventArgs args)
@@ -428,7 +420,7 @@
    
     private void OnActivateFaviconAsyncChanged(int newValue)
     {
-        _faviconPreviewPath = _themeFavicons.FirstOrDefault(t => t.Id == newValue)?.Path ?? ThemeDefaultAssets.DefaultFaviconPath;
+        _faviconPreviewPath = _themeFavicons.FirstOrDefault(t => t.Id == newValue)?.Path ?? _faviconPreviewPath;
         _activeFaviconId = newValue;
 
         _hasSelectionChanged = _themeFavicons.FirstOrDefault(t => t.IsActive)?.Id != newValue;
@@ -472,7 +464,7 @@
     private string? _logoFileName;
     private string? _logoContentType;
 
-    private string _logoPreviewPath = ThemeDefaultAssets.DefaultLogoPath;
+    private string _logoPreviewPath = string.Empty;
     private int _activeLogoId;
 
     private bool _hasLogoSelectionChanged = false;
@@ -483,18 +475,11 @@
     {
         _themeLogos = await ThemeLogoService.GetAllAsync();
 
-        if (_themeLogos.Count > 0)
-        {
-            var themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive);
-
-            if (themeLogoTemp is not null)
-            {
-                _logoPreviewPath = themeLogoTemp.Path;
-                _activeLogoId = themeLogoTemp.Id;
-
-                StateHasChanged();
-            }                
-        }
+        // El servicio resuelve el activo, y si no hay ninguno, el logo por
+        // defecto de la libreria -- este componente no conoce ni asigna ese
+        // fallback por su cuenta.
+        _logoPreviewPath = await ThemeLogoService.GetCurrentLogoPathAsync();
+        _activeLogoId = _themeLogos.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
     }
 
     private async Task UploadLogoFile(InputFileChangeEventArgs args)
@@ -563,7 +548,7 @@
 
     private void OnActivateLogoAsyncChanged(int newValue)
     {
-        _logoPreviewPath = _themeLogos.FirstOrDefault(t => t.Id == newValue)?.Path ?? ThemeDefaultAssets.DefaultLogoPath;
+        _logoPreviewPath = _themeLogos.FirstOrDefault(t => t.Id == newValue)?.Path ?? _logoPreviewPath;
         _activeLogoId = newValue;
 
         _hasLogoSelectionChanged = _themeLogos.FirstOrDefault(t => t.IsActive)?.Id != newValue;
