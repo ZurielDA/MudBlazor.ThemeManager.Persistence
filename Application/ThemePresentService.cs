@@ -97,6 +97,31 @@ namespace SAMACDX.ThemeManager.Persistence.Application
             return await _themePresentRepository.AddAsync(themePresent);
         }
 
+        public async Task<ThemePresent> UpdateAsync(ThemePresent themePresent)
+        {
+            if (themePresent.Id <= 0)
+            {
+                throw new ThemeValidationException("El tema a actualizar no es valido.");
+            }
+
+            if (string.IsNullOrWhiteSpace(themePresent.Name))
+            {
+                throw new ThemeValidationException("El nombre del tema no puede estar vacio.");
+            }
+
+            var duplicateName = await _themePresentRepository.FirstOrDefaultAsync(t => t.Name == themePresent.Name && t.Id != themePresent.Id);
+
+            if (duplicateName is not null)
+            {
+                throw new ThemeValidationException($"Ya existe un tema llamado \"{themePresent.Name}\".");
+            }
+
+            await _themePresentRepository.UpdateAsync(themePresent);
+            InvalidateActiveCache();
+
+            return themePresent;
+        }
+
         public async Task DeleteAsync(int id)
         {
             var present = (await _themePresentRepository.FindAsync(t => t.Id == id)).FirstOrDefault();

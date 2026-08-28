@@ -16,6 +16,8 @@ namespace SAMACDX.ThemeManager.Persistence.Interfaces.Services.Theme
 
         Task<ThemePresent> CreateAsync(ThemePresent themePresent);
 
+        Task<ThemePresent> UpdateAsync(ThemePresent themePresent);
+
         /// <summary>
         /// Elimina el tema dado. Lanza ThemeValidationException si es el tema
         /// base o el actualmente activo. No hace nada si el id no existe.

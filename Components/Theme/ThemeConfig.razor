@@ -1,15 +1,58 @@
-﻿<MudPaper Elevation="0" Class="pt-4">
+﻿@using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
+<MudPaper Elevation="0" Class="pt-4">
 
-    <MudTabs Elevation="0" Rounded="true" PanelClass="pt-4" ApplyEffectsToContainer="true">
+    <MudPaper Elevation="0" Class="pa-4">
+        <MudGrid Spacing="6">
+            <MudItem xs="12" md="12">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h4"><b>Branding</b></MudText>
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">
+                        Configuración visual, favicon y logotipo de la plataforma
+                    </MudText>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTabs @bind-ActivePanelIndex="_activeTabIndex" Elevation="0" Rounded="true" PanelClass="pt-4" ApplyEffectsToContainer="true">
+
         <MudTabPanel Text="Identidad">
-            <ThemeFaviconAndLogoConfig />
+            <ThemeFaviconAndLogoConfig StartCreateNew="@HandleNewTheme"  SelectThemePresent="@HandleSelectThemePresent" />
         </MudTabPanel>
+
         <MudTabPanel Text="Tema visual">
-            <ThemePaletteSelector />
+            <ThemePaletteSelector ThemePresent="@_selectedThemePresent" SelectThemePresent="@HandleSelectThemePresent" />
         </MudTabPanel>
+
         <MudTabPanel Text="Terminología">
             <ThemeTermConfig />
         </MudTabPanel>
+
     </MudTabs>
 
 </MudPaper>
+
+@code {
+    private int _activeTabIndex;
+
+    private Task HandleNewTheme(bool isNewTheme)
+    {
+        if (isNewTheme)
+        {
+            _selectedThemePresent = null;
+            _activeTabIndex = 1;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private ThemePresent? _selectedThemePresent;
+
+    private Task HandleSelectThemePresent(ThemePresent themePresent)
+    {
+        _selectedThemePresent = themePresent;
+        _activeTabIndex = 1;
+        
+        return Task.CompletedTask;
+    }
+}

@@ -4,12 +4,15 @@
 @using SAMACDX.ThemeManager.Persistence.Application
 @using SAMACDX.ThemeManager.Persistence.Extensions
 @using SAMACDX.ThemeManager.Persistence.StaticAssets
+@using SAMACDX.ThemeManager.Persistence.Utilities
 @using System.Text.Json
 
 @inject IThemeFaviconService ThemeFaviconService;
 @inject IThemeLogoService ThemeLogoService;
 @inject ThemeManagerPersistenceOptions Options
 @inject ISnackbar SnackbarService
+@inject IDialogService DialogService
+@inject IThemePresentService ThemePresentService
 
 <MudPaper Elevation="0" Class="pa-4">
     <MudGrid Spacing="6">
@@ -50,8 +53,8 @@
                         </MudCardHeader>
                         <MudCardContent>
                             <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
-                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:100px; height:100px; flex:0 0 100px;">
-                                        <MudImage Src="@_faviconPreviewPath" />
+                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:100px; height:100px; flex:0 0 100px; overflow:hidden;">
+                                    <MudImage Src="@_faviconPreviewPath" Alt="Favicon preview" Height="100" Class="rounded-lg d-block" Style="width:100%; object-fit:contain;" />
                                 </MudPaper>
                                 <MudStack Spacing="1" Class="flex-grow-1" Style="min-width:0;">
                                     <MudText Typo="Typo.body2"><b>@(_themeFavicons.FirstOrDefault(f => f.Id == _activeFaviconId)?.Name ?? "Favicon por defecto")</b></MudText>
@@ -112,8 +115,8 @@
                         </MudCardHeader>
                         <MudCardContent>
                             <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
-                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:100px; height:100px; flex:0 0 100px;">
-                                        <MudImage Src="@_logoPreviewPath" />
+                                <MudPaper Outlined="true" Class="d-flex align-center justify-center pa-2" Style="width:100px; height:100px; flex:0 0 100px; overflow:hidden;">
+                                    <MudImage Src="@_logoPreviewPath" Alt="Logotipo preview" Height="100" Class="rounded-lg d-block" Style="width:100%; object-fit:contain;" />
                                 </MudPaper>
                                 <MudStack Spacing="1" Class="flex-grow-1" Style="min-width:0;">
                                     <MudText Typo="Typo.body2"><b>@(_themeLogos.FirstOrDefault(l => l.Id == _activeLogoId)?.Name ?? "Logotipo por defecto")</b></MudText>
@@ -163,6 +166,67 @@
     </MudGrid>
 </MudPaper>
 
+<MudPaper Elevation="0" Class="pa-4">
+    <MudGrid Spacing="6">
+        <MudItem xs="12" md="3">
+            <MudStack Spacing="2">
+            </MudStack>
+        </MudItem>
+        <MudItem xs="12" md="9">
+            <MudPaper Elevation="0" Outlined="true" Class="px-6 pt-8">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h6">Configuraciones visuales guardadas</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => StartCreateNew.InvokeAsync(true))">
+                        Nueva Configuración
+                    </MudButton>
+                </MudStack>
+                <MudTable T="ThemePresent" Items="@themePresents" Hover="true" Elevation="0" Dense="false">
+                    <HeaderContent>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                        <MudTh Style="width:56px;"></MudTh>
+                    </HeaderContent>            
+                    <RowTemplate>
+                        <MudTd DataLabel="Configuración">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                                <MudStack Row="true" Spacing="1">
+                                    @foreach (var color in GetSwatchColors(context.Id))
+                                    {
+                                        <div style="@($"width:16px;height:16px;border-radius:50%;background:{color};flex:0 0 auto;")"></div>
+                                    }
+                                </MudStack>
+                                <MudText>@context.Name</MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Estado">
+                            @if (context.IsActive)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Activo</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">Guardado</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd>
+                            <div @onclick:stopPropagation="true">
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                                    <MudMenuItem Label="Actualizar" OnClick="@(() => UpdateFromTable(context))" />
+                                    <MudMenuItem Label="Activar" Disabled="@context.IsActive" OnClick="@(() => ActivateFromTable(context.Id))" />
+                                    <MudMenuItem Label="Eliminar" Disabled="@(context.IsBase || context.IsActive)" OnClick="@(() => DeleteFromTable(context))" />
+                                </MudMenu>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Color="Color.Secondary">Todavía no hay configuraciones guardadas.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
 @code {
 
     /*
@@ -185,12 +249,49 @@
     private bool _isSavingThemeFavicon = false;
     private bool _isActivatingThemeFavicon = false;
 
+    private sealed record UploadedAsset(byte[] Bytes, string FileName, string ContentType);
+
+    private async Task<UploadedAsset?> ReadUploadedAssetAsync(IBrowserFile file)
+    {
+        if (file.Size > Options.MaxUploadSizeBytes)
+        {
+            SnackbarService.Add($"El archivo supera el tamaño maximo permitido ({Options.MaxUploadSizeBytes / 1024 / 1024} MB).", Severity.Warning);
+            return null;
+        }
+
+        var buffer = new byte[file.Size];
+
+        await using var stream = file.OpenReadStream(Options.MaxUploadSizeBytes);
+        await stream.ReadAsync(buffer);
+
+        return new UploadedAsset(buffer, file.Name, file.ContentType);
+    }
+
+    private static string BuildPreviewPath(UploadedAsset uploadedAsset)
+        => $"data:{uploadedAsset.ContentType};base64,{Convert.ToBase64String(uploadedAsset.Bytes)}";
+
+    private static ThemeAssetFileContent CreateAssetContent(UploadedAsset uploadedAsset)
+        => new(new MemoryStream(uploadedAsset.Bytes), uploadedAsset.FileName, uploadedAsset.ContentType, uploadedAsset.Bytes.Length);
+
+    private void ShowSuccessMessage(string message)
+    {
+        SnackbarService.Add(
+            message,
+            Severity.Success,
+            config =>
+            {
+                config.RequireInteraction = true;
+                config.ShowCloseIcon = true;
+            });
+    }
+
     protected async override Task OnInitializedAsync()
     {
         try
         {
             await LoadFaviconAsync();
             await LoadLogoAsync();
+            await GetThemePresents();
         }
         catch (Exception)
         {
@@ -202,11 +303,11 @@
     {
         _themeFavicons = await ThemeFaviconService.GetAllAsync();
 
-        if (_themeFavicons.Count() > 0)
+        if (_themeFavicons.Count > 0)
         {
-            ThemeAsset themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
+            var themeFaviconTemp = _themeFavicons.FirstOrDefault(t => t.IsActive);
 
-            if(themeFaviconTemp != null)
+            if (themeFaviconTemp is not null)
             {
                 _faviconPreviewPath = themeFaviconTemp.Path;
                 _activeFaviconId = themeFaviconTemp.Id;
@@ -218,29 +319,21 @@
 
     private async Task UploadFiles(InputFileChangeEventArgs args)
     {
-        var file = args.File;
+        var uploadedAsset = await ReadUploadedAssetAsync(args.File);
 
-        if (file.Size > Options.MaxUploadSizeBytes)
+        if (uploadedAsset is null)
         {
-            SnackbarService.Add($"El archivo supera el tamaño maximo permitido ({Options.MaxUploadSizeBytes / 1024 / 1024} MB).", Severity.Warning);
             return;
         }
 
-        var buffer = new byte[file.Size];
+        _faviconFileBytes = uploadedAsset.Bytes;
+        _faviconFileName = uploadedAsset.FileName;
+        _faviconContentType = uploadedAsset.ContentType;
 
-        await using (var stream = file.OpenReadStream(Options.MaxUploadSizeBytes))
-        {
-            await stream.ReadAsync(buffer);
-        }
-
-        _faviconFileBytes = buffer;
-        _faviconFileName = file.Name;
-        _faviconContentType = file.ContentType;
-
-        _faviconPreviewPath = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+        _faviconPreviewPath = BuildPreviewPath(uploadedAsset);
     }
     
-    private void resetUploadFile()
+    private void ResetFaviconUploadState()
     {
         _faviconFileBytes = null;
         _faviconFileName = null;
@@ -258,11 +351,8 @@
 
         try
         {
-            var content = new ThemeAssetFileContent(
-                new MemoryStream(_faviconFileBytes),
-                _faviconFileName,
-                _faviconContentType ?? "application/octet-stream",
-                _faviconFileBytes.Length);
+            var uploadedAsset = new UploadedAsset(_faviconFileBytes, _faviconFileName, _faviconContentType ?? "application/octet-stream");
+            var content = CreateAssetContent(uploadedAsset);
 
             ThemeAsset newThemeFavicon = await ThemeFaviconService.CreateAsync(new ThemeAsset
             {
@@ -273,23 +363,9 @@
 
             _themeFavicons.Add(newThemeFavicon);
 
-            resetUploadFile();
+            ResetFaviconUploadState();
 
-            SnackbarService.Add(
-                @<div>
-                    <h3>Éxito</h3>
-                    <ul>
-                        <li>Se guardo el favicon con éxito</li>
-                    </ul>
-                </div>
-        ,
-                Severity.Success,
-                config =>
-                {
-                    config.RequireInteraction = true;
-                    config.ShowCloseIcon = true;
-                }
-            );
+            ShowSuccessMessage("Se guardó el favicon con éxito.");
         }
         catch (ThemeValidationException ex)
         {
@@ -307,19 +383,10 @@
    
     private void OnActivateFaviconAsyncChanged(int newValue)
     {
-        _faviconPreviewPath  = _themeFavicons.FirstOrDefault(t => t.Id == newValue)?.Path;
+        _faviconPreviewPath = _themeFavicons.FirstOrDefault(t => t.Id == newValue)?.Path ?? ThemeDefaultAssets.DefaultFaviconPath;
         _activeFaviconId = newValue;
 
-        int faviconActiveId = _themeFavicons.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
-
-        if (faviconActiveId != newValue)
-        {
-            _hasSelectionChanged = true;
-        }
-        else
-        {            
-            _hasSelectionChanged = false;
-        }
+        _hasSelectionChanged = _themeFavicons.FirstOrDefault(t => t.IsActive)?.Id != newValue;
 
         StateHasChanged();
     }
@@ -334,20 +401,7 @@
 
             _hasSelectionChanged = false;
 
-            SnackbarService.Add(
-                @<div>
-                    <h3>Éxito</h3>
-                    <ul>
-                        <li>Se activo el favicon con éxito</li>
-                    </ul>
-                </div>,
-                Severity.Success,
-                config =>
-                {
-                    config.RequireInteraction = true;
-                    config.ShowCloseIcon = true;
-                }
-            );
+            ShowSuccessMessage("Se activó el favicon con éxito.");
         }
         catch (Exception)
         {
@@ -384,11 +438,11 @@
     {
         _themeLogos = await ThemeLogoService.GetAllAsync();
 
-        if (_themeLogos.Count() > 0)
+        if (_themeLogos.Count > 0)
         {
-            ThemeAsset themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive)!;
+            var themeLogoTemp = _themeLogos.FirstOrDefault(t => t.IsActive);
 
-            if (themeLogoTemp != null)
+            if (themeLogoTemp is not null)
             {
                 _logoPreviewPath = themeLogoTemp.Path;
                 _activeLogoId = themeLogoTemp.Id;
@@ -400,29 +454,21 @@
 
     private async Task UploadLogoFile(InputFileChangeEventArgs args)
     {
-        var file = args.File;
+        var uploadedAsset = await ReadUploadedAssetAsync(args.File);
 
-        if (file.Size > Options.MaxUploadSizeBytes)
+        if (uploadedAsset is null)
         {
-            SnackbarService.Add($"El archivo supera el tamaño maximo permitido ({Options.MaxUploadSizeBytes / 1024 / 1024} MB).", Severity.Warning);
             return;
         }
 
-        var buffer = new byte[file.Size];
+        _logoFileBytes = uploadedAsset.Bytes;
+        _logoFileName = uploadedAsset.FileName;
+        _logoContentType = uploadedAsset.ContentType;
 
-        await using (var stream = file.OpenReadStream(Options.MaxUploadSizeBytes))
-        {
-            await stream.ReadAsync(buffer);
-        }
-
-        _logoFileBytes = buffer;
-        _logoFileName = file.Name;
-        _logoContentType = file.ContentType;
-
-        _logoPreviewPath = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+        _logoPreviewPath = BuildPreviewPath(uploadedAsset);
     }
 
-    private void resetUploadLogoFile()
+    private void ResetLogoUploadState()
     {
         _logoFileBytes = null;
         _logoFileName = null;
@@ -440,11 +486,8 @@
 
         try
         {
-            var content = new ThemeAssetFileContent(
-                new MemoryStream(_logoFileBytes),
-                _logoFileName,
-                _logoContentType ?? "application/octet-stream",
-                _logoFileBytes.Length);
+            var uploadedAsset = new UploadedAsset(_logoFileBytes, _logoFileName, _logoContentType ?? "application/octet-stream");
+            var content = CreateAssetContent(uploadedAsset);
 
             ThemeAsset newThemeLogo = await ThemeLogoService.CreateAsync(new ThemeAsset
             {
@@ -455,22 +498,9 @@
 
             _themeLogos.Add(newThemeLogo);
 
-            resetUploadLogoFile();
+            ResetLogoUploadState();
 
-            SnackbarService.Add(
-                @<div>
-                    <h3>Éxito</h3>
-                    <ul>
-                        <li>Se guardo el logo con éxito</li>
-                    </ul>
-                </div>,
-                Severity.Success,
-                config =>
-                {
-                    config.RequireInteraction = true;
-                    config.ShowCloseIcon = true;
-                }
-            );
+            ShowSuccessMessage("Se guardó el logotipo con éxito.");
         }
         catch (ThemeValidationException ex)
         {
@@ -488,19 +518,10 @@
 
     private void OnActivateLogoAsyncChanged(int newValue)
     {
-        _logoPreviewPath = _themeLogos.FirstOrDefault(t => t.Id == newValue)?.Path;
+        _logoPreviewPath = _themeLogos.FirstOrDefault(t => t.Id == newValue)?.Path ?? ThemeDefaultAssets.DefaultLogoPath;
         _activeLogoId = newValue;
 
-        int logoActiveId = _themeLogos.FirstOrDefault(t => t.IsActive)?.Id ?? 0;
-
-        if (logoActiveId != newValue)
-        {
-            _hasLogoSelectionChanged = true;
-        }
-        else
-        {
-            _hasLogoSelectionChanged = false;
-        }
+        _hasLogoSelectionChanged = _themeLogos.FirstOrDefault(t => t.IsActive)?.Id != newValue;
 
         StateHasChanged();
     }
@@ -515,20 +536,7 @@
 
             _hasLogoSelectionChanged = false;
 
-            SnackbarService.Add(
-                @<div>
-                    <h3>Éxito</h3>
-                    <ul>
-                        <li>Se activo el logo con éxito</li>
-                    </ul>
-                </div>,
-                Severity.Success,
-                config =>
-                {
-                    config.RequireInteraction = true;
-                    config.ShowCloseIcon = true;
-                }
-            );
+            ShowSuccessMessage("Se activó el logotipo con éxito.");
         }
         catch (Exception)
         {
@@ -542,6 +550,126 @@
 
     /*
      *
+     * Seccion de Configuraciones Visuales
      */
+
+    [Parameter]
+    public EventCallback<bool> StartCreateNew { get; set; }
+
+    [Parameter]
+    public EventCallback<ThemePresent> SelectThemePresent { get; set; }
+
+    private Dictionary<int, List<string>> _swatchColors = new Dictionary<int, List<string>>();
+
+    private List<ThemePresent> themePresents = new List<ThemePresent>();    
+    
+
+    private List<string> GetSwatchColors(int themePresentId) => _swatchColors.TryGetValue(themePresentId, out var colors) ? colors : new List<string>();
+
+    private async Task ActivateFromTable(int id)
+    {
+        try
+        {
+            await ActivateThemePresent(id);
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo activar el tema. Intenta nuevamente.", Severity.Error);
+        }
+    }
+
+    private async Task UpdateFromTable(ThemePresent themePresent)
+    {
+        await SelectThemePresent.InvokeAsync(themePresent);
+    }
+
+    private async Task DeleteFromTable(ThemePresent themePresent)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "Eliminar configuración",
+            $"¿Eliminar \"{themePresent.Name}\"? Esta acción no se puede deshacer.",
+            yesText: "Eliminar",
+            cancelText: "Cancelar");
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        try
+        {
+            await ThemePresentService.DeleteAsync(themePresent.Id);
+
+            themePresents.RemoveAll(t => t.Id == themePresent.Id);        
+            _swatchColors.Remove(themePresent.Id);
+
+            SnackbarService.Add("Configuración eliminada.", Severity.Success);
+        }
+        catch (ThemeValidationException ex)
+        {
+            SnackbarService.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception)
+        {
+            SnackbarService.Add("No se pudo eliminar la configuracion. Intenta nuevamente.", Severity.Error);
+        }
+    }
+
+    private async Task GetThemePresents()
+    {
+        themePresents = await ThemePresentService.GetAllAsync();
+
+        _swatchColors = themePresents.ToDictionary(themePresent => themePresent.Id,themePresent => ExtractSwatchColors(themePresent.JsonData));
+    }
+
+    private List<string> ExtractSwatchColors(string? jsonData)
+    {
+        if (string.IsNullOrWhiteSpace(jsonData))
+        {
+            return new List<string>();
+        }
+
+        try
+        {
+            var theme = JsonHelper.Deserialize<ThemeManagerTheme>(jsonData);
+            var palette = theme?.Theme?.PaletteLight;
+
+            if (palette is null)
+            {
+                return new List<string>();
+            }
+
+            return new List<string>
+            {
+                palette.Primary.ToString(),
+                palette.Secondary.ToString(),
+                palette.Tertiary.ToString(),
+                palette.Error.ToString(),
+            };
+        }
+        catch (Exception)
+        {
+            return new List<string>();
+        }
+    }
+
+    private async Task ActivateThemePresent(int id)
+    {
+        themePresents = await ThemePresentService.ActivateAsync(id);
+
+        var selectedThemePresent = themePresents.FirstOrDefault(t => t.Id == id);
+        if (selectedThemePresent is not null)
+        {
+            await SelectThemePresent.InvokeAsync(selectedThemePresent);
+        }
+
+        _swatchColors = themePresents.ToDictionary(
+            themePresent => themePresent.Id,
+            themePresent => _swatchColors.TryGetValue(themePresent.Id, out var colors) ? colors : ExtractSwatchColors(themePresent.JsonData)
+        );
+    }
+
+
+
 
 }

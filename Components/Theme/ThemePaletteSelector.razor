@@ -2,7 +2,7 @@
 @using SAMACDX.ThemeManager.Persistence.Entities.ThemeCatalog
 @using SAMACDX.ThemeManager.Persistence.Application
 @using SAMACDX.ThemeManager.Persistence.Utilities
-@using ThemePreset = MudBlazor.ThemeManager.MudThemeManager.ThemePreset;
+@using ThemePresetMud = MudBlazor.ThemeManager.MudThemeManager.ThemePreset;
 
 
 @inject IThemeManagerService ThemeManagerService
@@ -44,7 +44,7 @@
                         }
                         else
                         {
-                            <MudText>Guardar Configuración</MudText>
+                            <MudText>@(selectedThemePresent is null ? "Guardar Configuración" : "Actualizar Configuración")</MudText>
                         }
                     </MudButton>
                 </MudPaper>
@@ -61,17 +61,22 @@
 
 @code {
 
+    [Parameter]
+    public ThemePresent? ThemePresent { get; set; }
+
+    [Parameter]
+    public EventCallback<ThemePresent> SelectThemePresent { get; set; }
+
     private string? nameTheme;
     private bool nameThemeError = false;
     private string nameThemeErrorMessage = "El campo es obligatorio";
     private bool isSavingThemePresent = false;
     private bool isSavingActiveThemePresent = false;
 
-    private Dictionary<int, ThemePreset> themePresets = new Dictionary<int, ThemePreset>();
-    private List<ThemePresent>? themePresents;
+    private Dictionary<int, ThemePresetMud> themePresets = new Dictionary<int, ThemePresetMud>();
+    private List<ThemePresent> themePresents = new List<ThemePresent>();
     private ThemeManagerTheme themeManagerTheme = new ThemeManagerTheme();
     private ThemePresent? activeThemePresent;
-    private ThemePresent? newThemePresent;
     private ThemePresent? selectedThemePresent;
 
     protected override async Task OnInitializedAsync()
@@ -101,14 +106,43 @@
         }
     }
 
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ThemePresent is null)
+        {
+            selectedThemePresent = null;
+            nameTheme = string.Empty;
+            return;
+        }
+
+        nameTheme = ThemePresent.Name;
+        await updateThemePreset(new ThemePresetMud(ThemePresent.Id, ThemePresent.Name, ThemePresent.IsActive));
+    }
+
     private async Task GetActiveThemeManagerTheme()
     {
         activeThemePresent = await ThemePresentService.GetActiveAsync();
 
-        if (activeThemePresent?.JsonData != null)
+        if (activeThemePresent is null)
         {
-            themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(activeThemePresent.JsonData)!;
+            return;
         }
+
+        if (activeThemePresent?.JsonData is null)
+        {
+            return;
+        }
+
+        themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(activeThemePresent.JsonData)!;
+
+        foreach (var key in themePresets.Keys.ToList())
+        {
+            var preset = themePresets[key];
+
+            themePresets[key] = preset with { IsActive = key == activeThemePresent.Id };
+        }
+
+        StateHasChanged();
     }
 
     private async Task GetThemePresents()
@@ -117,20 +151,8 @@
 
         themePresets = themePresents.ToDictionary(
             themePresent => themePresent.Id,
-            themePresent => new ThemePreset(themePresent.Id, themePresent.Name, themePresent.IsActive)
+            themePresent => new ThemePresetMud(themePresent.Id, themePresent.Name, themePresent.IsActive)
         );
-    }
-
-    private void AddThemePresent(ThemePresent newThemePresent)
-    {
-        if (newThemePresent != null && themePresents != null)
-        {
-            themePresents.Add(newThemePresent);
-        }
-        else if (newThemePresent != null)
-        {
-            themePresents = new List<ThemePresent> { newThemePresent };
-        }
     }
 
     private async Task UpdateTheme(ThemeManagerTheme updateThemeManagerTheme)
@@ -158,14 +180,33 @@
 
         try
         {
-            newThemePresent = await ThemePresentService.CreateAsync(
-                new ThemePresent { Name = nameTheme!, JsonData = JsonHelper.Serialize(themeManagerTheme) }
-            );
+            var themeName = nameTheme!.Trim();
+            var existingThemePresent = selectedThemePresent
+                ?? themePresents.FirstOrDefault(themePresent => string.Equals(themePresent.Name, themeName, StringComparison.OrdinalIgnoreCase));
 
-            AddThemePresent(newThemePresent);
-            AddThemePreset(new ThemePreset(newThemePresent.Id, newThemePresent.Name, newThemePresent.IsActive));
+            var themeToSave = new ThemePresent
+            {
+                Id = existingThemePresent?.Id ?? 0,
+                Name = themeName,
+                JsonData = JsonHelper.Serialize(themeManagerTheme),
+                IsActive = existingThemePresent?.IsActive ?? false
+            };
 
-            nameTheme = "";
+            var savedThemePresent = existingThemePresent is null
+                ? await ThemePresentService.CreateAsync(themeToSave)
+                : await ThemePresentService.UpdateAsync(themeToSave);
+
+            SnackbarService.Add(existingThemePresent is null ? "Tema guardado exitosamente." : "Tema actualizado exitosamente.", Severity.Success);
+
+            await GetThemePresents();
+
+            if (existingThemePresent is not null)
+            {
+                selectedThemePresent = savedThemePresent;
+                await SelectThemePresent.InvokeAsync(savedThemePresent);
+            }
+
+            nameTheme = savedThemePresent.Name;
         }
         catch (ThemeValidationException ex)
         {
@@ -179,14 +220,6 @@
         finally
         {
             isSavingThemePresent = false;
-        }
-    }
-
-    private void AddThemePreset(ThemePreset preset)
-    {
-        if (preset != null)
-        {
-            themePresets[preset.Id] = preset;
         }
     }
 
@@ -205,7 +238,7 @@
         }
     }
 
-    private async Task updateThemePreset(ThemePreset updateThemePreset)
+    private async Task updateThemePreset(ThemePresetMud updateThemePreset)
     {
         try
         {
@@ -216,6 +249,8 @@
                 SnackbarService.Add("No se encontro la configuracion visual de ese tema.", Severity.Warning);
                 return;
             }
+
+            nameTheme = selectedThemePresent.Name;
 
             ThemeManagerTheme themeManagerTheme = JsonHelper.Deserialize<ThemeManagerTheme>(selectedThemePresent.JsonData)!;
 

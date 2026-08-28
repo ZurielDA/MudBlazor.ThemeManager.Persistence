@@ -34,7 +34,7 @@
     </MudPaper>
 
     <MudDataGrid Class="mx-6" T="ThemeTerm" Items="@themeTerms" SortMode="SortMode.Multiple" Filterable="true" ReadOnly="false" EditMode="DataGridEditMode.Cell"
-                 StartedEditingItem="@StartedEditingItem" CanceledEditingItem="@CanceledEditingItem" CommittedItemChanges="@CommittedItemChanges"
+                 CommittedItemChanges="@CommittedItemChanges"
                  EditTrigger="DataGridEditTrigger.OnRowClick" QuickFilter="@_quickFilter" Hideable="true" Hover="@_hover" Dense="true">
 
         <ToolBarContent>
@@ -72,10 +72,9 @@
 
 @code {
 
-    private string _searchString;
+    private string _searchString = string.Empty;
     private bool _hover = true;
-    private List<string> _events = new();
-    private List<ThemeTerm> themeTerms = new List<ThemeTerm>();
+    private List<ThemeTerm> themeTerms = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -89,49 +88,15 @@
         }
     }
 
-    private Func<ThemeTerm, bool> _quickFilter => x =>
+    private Func<ThemeTerm, bool> _quickFilter => term => string.IsNullOrWhiteSpace(_searchString) || MatchesSearch(term, _searchString);
+
+    private static bool MatchesSearch(ThemeTerm term, string searchString)
     {
-        if (string.IsNullOrWhiteSpace(_searchString))
-        {
-            return true;
-        }
-
-        if (x.Key.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (x.Singular.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (x.Plural.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (x.Gender.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (x.Special.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return false;
-    };
-
-    public void StartedEditingItem(ThemeTerm item)
-    {
-        _events.Insert(0, $"Event = StartedEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
-    }
-
-    public void CanceledEditingItem(ThemeTerm item)
-    {
-        _events.Insert(0, $"Event = CanceledEditingItem, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
+        return term.Key.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || term.Singular.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || term.Plural.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || term.Gender.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || term.Special.Contains(searchString, StringComparison.OrdinalIgnoreCase);
     }
 
     // Antes era "async void": la excepcion mas grave posible en C# async,
@@ -141,8 +106,6 @@
     // errores explicito.
     public async Task CommittedItemChanges(ThemeTerm item)
     {
-        _events.Insert(0, $"Event = CommittedItemChanges, Data = {System.Text.Json.JsonSerializer.Serialize(item)}");
-
         try
         {
             await ThemeTermService.UpdateTermsAsync(item);
