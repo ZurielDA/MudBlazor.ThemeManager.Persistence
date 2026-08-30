@@ -5,7 +5,7 @@ using SAMACDX.ThemeManager.Persistence.DataAccess.Abstractions;
 namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
 {
     public class ThemeTermService : IThemeTermService
-    {        
+    {
         private readonly IThemeTermRepository _themeTermRepository;
 
         public ThemeTermService(IThemeTermRepository themeTermRepository)
@@ -25,10 +25,10 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
             ValidateGender(themeTerm);
 
             return await _themeTermRepository.AddAsync(themeTerm);
-        }        
+        }
 
         public async Task<ThemeTerm> UpdateTermsAsync(ThemeTerm themeTerm)
-        {            
+        {
             ValidateGender(themeTerm);
 
             await _themeTermRepository.UpdateAsync(themeTerm);

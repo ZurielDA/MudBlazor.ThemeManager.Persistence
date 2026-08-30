@@ -37,7 +37,7 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
             var term = await GetByKeyAsync(key);
             if (term is null)
             {
-                return key;                
+                return key;
             }
 
             return SpanishArticleHelper.WithDefiniteArticle(term.Gender, term.Singular);
@@ -49,7 +49,7 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
 
             if (term is null)
             {
-                return key;                
+                return key;
             }
 
             return SpanishArticleHelper.WithDefiniteArticlePlural(term.Gender, term.Plural);
@@ -60,7 +60,7 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
             var term = await GetByKeyAsync(key);
             if (term is null)
             {
-                return key;                
+                return key;
             }
 
             return SpanishArticleHelper.WithIndefiniteArticle(term.Gender, term.Singular);
@@ -70,7 +70,7 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
         {
             var term = await GetByKeyAsync(key);
             if (term is null)
-            {                
+            {
                 return key;
             }
 
@@ -92,7 +92,7 @@ namespace SAMACDX.ThemeManager.Persistence.Application.Terminology
         {
             if (_cache.TryGetValue(CacheKey, out Dictionary<string, ThemeTerm>? cached) && cached is not null)
             {
-                return cached;                
+                return cached;
             }
 
             var allTerms = await _themeTermService.GetAllTermsAsync();

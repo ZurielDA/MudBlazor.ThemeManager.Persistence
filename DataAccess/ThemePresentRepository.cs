@@ -15,6 +15,6 @@ namespace SAMACDX.ThemeManager.Persistence.DataAccess
         public ThemePresentRepository(TContext externalContext)
             : base(externalContext)
         {
-        }       
+        }
     }
 }
